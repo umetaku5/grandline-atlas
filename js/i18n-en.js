@@ -251,6 +251,7 @@ OP.I18N_EN = {
   // 用語集・悪魔の実
   "用語集": "Glossary",
   "悪魔の実図鑑": "Devil Fruit guide",
+  "船": "Ships",
   "この世界のルールと謎。カードをクリックすると、関連する人物や他の用語へたどれます。": "The rules and mysteries of this world. Click a card to follow it to related people and terms.",
   "用語を絞り込み": "Filter terms",
   "該当する用語がありません。": "No matching terms.",

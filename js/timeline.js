@@ -153,7 +153,7 @@
       glEl = el;
       const cats = Object.entries(OP.GL_CAT).filter(([c]) => OP.glossary.some((g) => g.category === c));
       el.innerHTML = `<div class="wrap">
-        ${OP.subtabs("glossary", [["glossary", "用語集"], ["fruits", "悪魔の実図鑑"]])}
+        ${OP.subtabs("glossary", [["glossary", "用語集"], ["fruits", "悪魔の実図鑑"], ["ships", "船"]])}
         <div class="view-head"><h1>用語集</h1><p>この世界のルールと謎。カードをクリックすると、関連する人物や他の用語へたどれます。</p></div>
         <div class="toolbar"><div class="tabs" id="gl-cats"><button class="active" data-cat="">すべて (${OP.glossary.length})</button>${cats.map(([c, n]) => `<button data-cat="${c}">${n} (${OP.glossary.filter((g) => g.category === c).length})</button>`).join("")}</div></div>
         <div class="toolbar"><input id="gl-q" type="search" placeholder="用語を絞り込み" style="font:inherit;font-size:13px;padding:6px 10px;border-radius:7px;border:1px solid var(--line-strong);background:var(--surface);color:var(--ink)"></div>

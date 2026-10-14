@@ -27,7 +27,7 @@
       const cnt = (t) => OP.fruits.filter((f) => f.type === t || f.subtype === t).length;
       const types = ["超人系", "動物系", "幻獣種", "古代種", "自然系"];
       el.innerHTML = `<div class="wrap">
-        ${OP.subtabs("fruits", [["glossary", "用語集"], ["fruits", "悪魔の実図鑑"]])}
+        ${OP.subtabs("fruits", [["glossary", "用語集"], ["fruits", "悪魔の実図鑑"], ["ships", "船"]])}
         <div class="view-head"><h1>悪魔の実図鑑</h1><p>食べると能力を得る代わりに泳げなくなる実。能力者が死ぬと実は世界のどこかに再び実るため、受け継がれてきた実もあります。</p></div>
         <div class="toolbar"><div class="tabs" id="fr-types"><button class="active" data-t="">すべて (${OP.fruits.length})</button>${types.map((t) => `<button data-t="${t}">${t} (${cnt(t)})</button>`).join("")}</div></div>
         <div class="toolbar">

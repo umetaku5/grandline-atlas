@@ -1,0 +1,47 @@
+.iso-page{width:min(900px,100% - 16px);margin:8px auto 12px}
+.mr{margin:0}
+.mr .iso-plate{padding:46px 20px 50px}
+.mr-stage{position:relative;touch-action:pan-y;outline:none}
+.mr-stage:focus-visible{outline:1px solid var(--anatomy-muted);outline-offset:6px}
+.mr-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.mr .it[data-p]{cursor:pointer}
+
+.mr{--mr-ring:#ffffff14;--mr-hover:#ffffff0a}
+.iso[data-theme="light"] .mr{--mr-ring:#0000001a;--mr-hover:#0000000a}
+
+.mr-void{fill:var(--anatomy-shade-0);stroke:none}
+.mr-soil{fill:var(--anatomy-shade-0);stroke:none}
+.mr-glass{fill:var(--anatomy-shade-1);stroke:none}
+.mr-flag{fill:var(--anatomy-hi);stroke:none}
+.mr-bone,.mr-skull{fill:var(--anatomy-hi);stroke:none}
+.mr-hole{fill:var(--anatomy-shade-2);stroke:none}
+.mr-crown,.mr-brim{fill:var(--anatomy-mid);stroke:none}
+.mr-band{fill:var(--anatomy-hi);stroke:none}
+.mr-emblem{pointer-events:none}
+.mr-fruit circle{opacity:1!important}
+
+/* one part lit, the rest steps down a tone */
+.mr-stage[data-focus] .it:not([data-on]){--anatomy-hi:var(--anatomy-mid);--anatomy-mid:var(--anatomy-lo)}
+.it[data-on]{--anatomy-hi:var(--anatomy-lit);--anatomy-mid:var(--anatomy-hi)}
+.it[data-on] .iso-top,.it[data-on] .tb-shine{fill:var(--anatomy-lit-top)}
+.it[data-on] .iso-shade,.it[data-on] .tb-body{fill:var(--anatomy-lit-shade)}
+.it[data-on] [data-seamless]>.iso-shade{stroke:var(--anatomy-lit-shade)}
+.it[data-on] [data-seamless]>.iso-top{stroke:var(--anatomy-lit-top)}
+
+.mr-parts{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+.mr-part{display:inline-flex;align-items:baseline;gap:7px;padding:5px 10px;border:0;border-radius:999px;background:transparent;color:var(--anatomy-muted);font:12.5px/1.3 ui-sans-serif,system-ui,-apple-system,"Segoe UI","Hiragino Sans","Noto Sans JP",sans-serif;cursor:pointer;box-shadow:inset 0 0 0 1px var(--mr-ring);transition:color 160ms var(--anatomy-ease),background 160ms var(--anatomy-ease)}
+.mr-part:hover,.mr-part:focus-visible,.mr-part[data-on]{color:var(--anatomy-strong);background:var(--mr-hover);outline:none}
+.mr-part:focus-visible{box-shadow:inset 0 0 0 1px var(--anatomy-muted)}
+.mr-num{font-family:var(--anatomy-mono);font-size:10px;color:var(--anatomy-muted)}
+.mr-caption{display:block;color:var(--anatomy-text)}
+html[lang="ja"] body{font-family:ui-sans-serif,system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif}
+
+@media (max-width:560px){
+  .mr .iso-plate{padding:42px 6px 62px}
+  .mr .iso-plate-corner[data-corner="readout"]{max-width:62%;overflow:hidden;text-overflow:ellipsis}
+  .mr .iso-plate-corner[data-corner="title"]{max-width:60%;overflow:hidden;text-overflow:ellipsis}
+}
+@media (max-width:560px){
+  .mr .iso-plate{overflow:hidden}
+  .mr-stage svg{width:124%;margin:-4% 0 -2% -12%}
+}
