@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>グランドライン図鑑</title>
+<meta name="description" content="ワンピースの世界観・人物関係・勢力・地図・年表をインタラクティブに学べる非公式の図鑑。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<script>
+  try { var t = localStorage.getItem("op-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+</script>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="#/home" aria-label="ホーム">
+    <svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="17" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 3v34M3 20h34" stroke="currentColor" stroke-width="1" opacity=".5"/><path d="M20 8l4 12-4 12-4-12z" fill="var(--accent)"/></svg>
+    <span class="brand-text">グランドライン図鑑</span>
+  </a>
+  <nav class="nav" aria-label="メインナビゲーション">
+    <a href="#/graph" data-view="graph">相関図</a>
+    <a href="#/map" data-view="map">世界地図</a>
+    <a href="#/factions" data-view="factions">勢力図</a>
+    <a href="#/timeline" data-view="timeline">年表</a>
+    <a href="#/arcs" data-view="arcs">編</a>
+    <a href="#/mysteries" data-view="mysteries">謎</a>
+    <a href="#/glossary" data-view="glossary">図鑑</a>
+    <a href="#/bounties" data-view="bounties">データ</a>
+  </nav>
+  <div class="search">
+    <input id="search-input" type="search" placeholder="人物・勢力・場所・用語を検索" autocomplete="off" aria-label="検索">
+    <ul id="search-results" class="search-results" role="listbox" hidden></ul>
+  </div>
+  <button id="theme-toggle" class="icon-btn" aria-label="ライト/ダーク切替" title="ライト/ダーク切替">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z" fill="currentColor"/></svg>
+  </button>
+</header>
+
+<main id="views">
+  <section class="view" id="view-home" data-view="home"></section>
+  <section class="view" id="view-graph" data-view="graph"></section>
+  <section class="view" id="view-map" data-view="map"></section>
+  <section class="view" id="view-factions" data-view="factions"></section>
+  <section class="view" id="view-timeline" data-view="timeline"></section>
+  <section class="view" id="view-glossary" data-view="glossary"></section>
+  <section class="view" id="view-family" data-view="family"></section>
+  <section class="view" id="view-pyramid" data-view="pyramid"></section>
+  <section class="view" id="view-seats" data-view="seats"></section>
+  <section class="view" id="view-arcs" data-view="arcs"></section>
+  <section class="view" id="view-mysteries" data-view="mysteries"></section>
+  <section class="view" id="view-fruits" data-view="fruits"></section>
+  <section class="view" id="view-bounties" data-view="bounties"></section>
+  <section class="view" id="view-battles" data-view="battles"></section>
+</main>
+
+<aside id="panel" class="panel" aria-label="詳細" hidden>
+  <button class="panel-close icon-btn" aria-label="閉じる">×</button>
+  <div class="panel-body"></div>
+</aside>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="js/data/arcs.js"></script>
+<script src="js/data/factions.js"></script>
+<script src="js/data/characters.js"></script>
+<script src="js/data/relations.js"></script>
+<script src="js/data/places.js"></script>
+<script src="js/data/timeline.js"></script>
+<script src="js/data/glossary.js"></script>
+<script src="js/data/fruits.js"></script>
+<script src="js/data/mysteries.js"></script>
+<script src="js/data/families.js"></script>
+<script src="js/data/positions.js"></script>
+<script src="js/data/bounties.js"></script>
+<script src="js/core.js"></script>
+<script src="js/home.js"></script>
+<script src="js/graph.js"></script>
+<script src="js/map.js"></script>
+<script src="js/factions.js"></script>
+<script src="js/timeline.js"></script>
+<script src="js/family.js"></script>
+<script src="js/arcview.js"></script>
+<script src="js/encyclopedia.js"></script>
+<script src="js/stats.js"></script>
+<script>OP.start();</script>
+</body>
+</html>
