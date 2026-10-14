@@ -8,8 +8,10 @@ import * as k from "../anatomy/kit/iso-kit.mjs";
 import * as G from "../anatomy/kit/lathe.mjs";
 import { tubePieces, tubeSvg } from "../anatomy/kit/tube.mjs";
 import * as A from "../anatomy/kit/audit.mjs";
-import { kitScript } from "../anatomy/scripts/inline-kit.mjs";
+import { glCamera } from "../anatomy/kit/gl.mjs";
+import { kitScript, glScript } from "../anatomy/scripts/inline-kit.mjs";
 import { TEXT, PART_ORDER } from "./text.mjs";
+import { buildScene } from "./detail.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -276,7 +278,8 @@ function mouthClip(id, x0, x1, z0, z1, y = W) {
 }
 const VEH = {};
 // Each vehicle is a list of parts drawn back to front inside one item.
-function vehicleParts(c, cx) {
+function vehicleParts(c, cx, Pp = P) {
+  const at = (p) => k.iso(p, Pp);
   const y0 = W - 24;
   const z0 = 54.5;
   const parts = [];
@@ -284,62 +287,63 @@ function vehicleParts(c, cx) {
   const owner = `veh${c}`;
   const wheel = (y, r, tone = "mid") => {
     const F = G.frameAlong([cx - 2, y, z0 + r], [1, 0, 0]);
-    add(S(G.disc(0, 4, r, F, P, { steps: 36 }), { tone }) + Dots([at([cx + 2, y, z0 + r])], { size: 0.5, tone: "hi" }), A.disc(F, 0, 4, r, { name: `${owner}.wheel`, owner }), [cx, y, z0 + r]);
+    add(S(G.disc(0, 4, r, F, Pp, { steps: 36 }), { tone }) + Dots([at([cx + 2, y, z0 + r])], { size: 0.5, tone: "hi" }), A.disc(F, 0, 4, r, { name: `${owner}.wheel`, owner }), [cx, y, z0 + r]);
   };
   const blk = (x0, x1, ya, yb, za, zb, tone = "mid", r = 0.8, extra = "") => {
     const plan = { x: x0, y: ya, w: x1 - x0, d: yb - ya, r };
-    add(S(k.slabOf(plan, za, zb - za, P, 3, 0.3), { tone }) + extra, A.slab(plan, za, zb - za, { name: `${owner}.body`, owner }, 3), [(x0 + x1) / 2, (ya + yb) / 2, (za + zb) / 2]);
+    add(S(k.slabOf(plan, za, zb - za, Pp, 3, 0.3), { tone }) + extra, A.slab(plan, za, zb - za, { name: `${owner}.body`, owner }, 3), [(x0 + x1) / 2, (ya + yb) / 2, (za + zb) / 2]);
   };
-  const sph = (c3, r, tone = "hi") => add(S(G.sphereOf(c3, r, P, { steps: 28 }), { tone }), A.ball(c3, r, { name: `${owner}.ball`, owner }), c3);
+  const sph = (c3, r, tone = "hi") => add(S(G.sphereOf(c3, r, Pp, { steps: 28 }), { tone }), A.ball(c3, r, { name: `${owner}.ball`, owner }), c3);
   if (c === 1) {
     // Shiro Mokuba I: a white horse on two wheels
     wheel(y0 + 4.5, 4.5);
     wheel(y0 + 17.5, 4.5);
-    blk(cx - 2.6, cx + 2.6, y0 + 3, y0 + 19, z0 + 6.5, z0 + 10.5, "hi", 1.6);
-    blk(cx - 2.2, cx + 2.2, y0 + 5, y0 + 11, z0 + 10.5, z0 + 12, "mid", 0.8);
-    blk(cx - 2, cx + 2, y0 + 15, y0 + 21, z0 + 10.5, z0 + 17, "hi", 1.4, Dots([at([cx + 2, y0 + 19.6, z0 + 15])], { size: 0.5, tone: "hi" }));
-    blk(cx - 5, cx + 5, y0 + 14, y0 + 15.2, z0 + 12, z0 + 13, "mid", 0.4);
+    blk(cx - 2.6, cx + 2.6, y0 + 3, y0 + 19, z0 + 9, z0 + 12.4, "hi", 1.6);
+    blk(cx - 2.2, cx + 2.2, y0 + 5, y0 + 11, z0 + 12.4, z0 + 13.8, "mid", 0.8);
+    blk(cx - 2, cx + 2, y0 + 15, y0 + 21, z0 + 12.4, z0 + 18.4, "hi", 1.4, Dots([at([cx + 2, y0 + 19.6, z0 + 16.6])], { size: 0.5, tone: "hi" }));
+    blk(cx - 5, cx + 5, y0 + 14, y0 + 15.2, z0 + 13.6, z0 + 14.6, "mid", 0.4);
   } else if (c === 2) {
     // Mini Merry II: a small paddle boat with a sheep's head
-    blk(cx - 5.5, cx + 5.5, y0 + 1, y0 + 22, z0, z0 + 6, "mid", 4, Ln(k.sideSeam({ x: cx - 5.5, y: y0 + 1, w: 11, d: 21, r: 4 }, z0 + 4.4, P, 3), { tone: "faint" }));
+    blk(cx - 5.5, cx + 5.5, y0 + 1, y0 + 22, z0, z0 + 6, "mid", 4, Ln(k.sideSeam({ x: cx - 5.5, y: y0 + 1, w: 11, d: 21, r: 4 }, z0 + 4.4, Pp, 3), { tone: "faint" }));
     blk(cx - 3.8, cx + 3.8, y0 + 4, y0 + 13, z0 + 6, z0 + 11, "hi", 1.2);
     blk(cx - 4.4, cx + 4.4, y0 + 3.4, y0 + 13.6, z0 + 11, z0 + 12, "mid", 1.2);
     sph([cx, y0 + 18, z0 + 9.6], 3.6, "hi");
-    sph([cx - 3.4, y0 + 17.6, z0 + 10.6], 1.5, "mid");
-    sph([cx + 3.4, y0 + 17.6, z0 + 10.6], 1.5, "mid");
+    sph([cx - 4.8, y0 + 18, z0 + 11.33], 1.5, "mid");
+    sph([cx + 4.8, y0 + 18, z0 + 11.33], 1.5, "mid");
   } else if (c === 3) {
     // Shark Submerge III: a shark-shaped submarine
     blk(cx - 3, cx + 3, y0 + 6, y0 + 16, z0, z0 + 1.6, "lo", 0.6);
-    const F = G.frameOf([cx, y0, z0 + 6.6], [0, 1, 0], [1, 0, 0], [0, 0, 1]);
-    const L = 22;
-    const radius = (s) => 5.2 * (1 - Math.pow((s - 10) / 11.2, 2));
-    const slope = (s) => (-5.2 * 2 * (s - 10)) / (11.2 * 11.2);
+    const F = G.frameOf([cx, y0 + 1.8, z0 + 6.8], [0, 1, 0], [1, 0, 0], [0, 0, 1]);
+    const radius = (s) => 5.2 * (1 - Math.pow((s - 9.75) / 10.9, 2));
+    const slope = (s) => (-5.2 * 2 * (s - 9.75)) / (10.9 * 10.9);
     const profile = Array.from({ length: 23 }, (_, i) => {
-      const s = (i / 22) * L * 0.95;
+      const s = (i / 22) * 19.5;
       return [s, radius(s), 1];
     });
-    add(S(G.solidOf(profile, F, P, { smooth: { slope, radius } }), { tone: "hi" }) + Dots([at([cx + 3.6, y0 + 17.4, z0 + 8.2])], { size: 0.55, tone: "lo" }), A.solid(F, profile, { name: `${owner}.body`, owner, radius }), [cx, y0 + 10, z0 + 6.6]);
+    add(S(G.solidOf(profile, F, Pp, { smooth: { slope, radius } }), { tone: "hi" }) + Dots([at([cx + 3.7, y0 + 17.6, z0 + 8.2])], { size: 0.55, tone: "lo" }), A.solid(F, profile, { name: `${owner}.body`, owner, radius }), [cx, y0 + 11.5, z0 + 6.8]);
     const fin = G.frameOf([cx, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
-    add(S(G.prismOf(fin, [[y0 + 8, z0 + 10.8], [y0 + 13, z0 + 11.4], [y0 + 9, z0 + 16.5]], -0.6, 0.6, P), { tone: "mid" }), A.prism(fin, [[y0 + 8, z0 + 10.8], [y0 + 13, z0 + 11.4], [y0 + 9, z0 + 16.5]], -0.6, 0.6, { name: `${owner}.fin`, owner }), [cx, y0 + 10, z0 + 12]);
-    add(S(G.prismOf(fin, [[y0 + 0.6, z0 + 6], [y0 + 2.4, z0 + 7], [y0 - 1.4, z0 + 13], [y0 - 1.6, z0 + 11.4]], -0.6, 0.6, P), { tone: "mid" }), A.prism(fin, [[y0 + 0.6, z0 + 6], [y0 + 2.4, z0 + 7], [y0 - 1.4, z0 + 13], [y0 - 1.6, z0 + 11.4]], -0.6, 0.6, { name: `${owner}.tail`, owner }), [cx, y0, z0 + 9]);
+    add(S(G.prismOf(fin, [[y0 + 9.5, z0 + 12], [y0 + 14, z0 + 12], [y0 + 10, z0 + 17]], -0.6, 0.6, Pp), { tone: "mid" }), A.prism(fin, [[y0 + 9.5, z0 + 12], [y0 + 14, z0 + 12], [y0 + 10, z0 + 17]], -0.6, 0.6, { name: `${owner}.fin`, owner }), [cx, y0 + 10, z0 + 12]);
+    add(S(G.prismOf(fin, [[y0 + 1.8, z0 + 6.3], [y0 + 1.8, z0 + 7.3], [y0 - 1.4, z0 + 13], [y0 - 1.6, z0 + 11.4]], -0.6, 0.6, Pp), { tone: "mid" }), A.prism(fin, [[y0 + 1.8, z0 + 6.3], [y0 + 1.8, z0 + 7.3], [y0 - 1.4, z0 + 13], [y0 - 1.6, z0 + 11.4]], -0.6, 0.6, { name: `${owner}.tail`, owner }), [cx, y0, z0 + 9]);
   } else if (c === 4) {
     // Kurosai FR-U IV: a black rhino on two wheels
     wheel(y0 + 4.5, 4.5, "lo");
     wheel(y0 + 18, 4.5, "lo");
-    blk(cx - 3, cx + 3, y0 + 2.4, y0 + 18.4, z0 + 5.6, z0 + 11, "lo", 1.8);
-    blk(cx - 2.4, cx + 2.4, y0 + 5, y0 + 11, z0 + 11, z0 + 12.4, "mid", 0.8);
-    blk(cx - 2.8, cx + 2.8, y0 + 15, y0 + 21.4, z0 + 8, z0 + 14, "lo", 1.6, Dots([at([cx + 2.8, y0 + 19.6, z0 + 12.2])], { size: 0.5, tone: "hi" }));
-    const H = G.frameOf([cx, y0 + 19.4, z0 + 14], [0, 0, 1], [1, 0, 0], [0, 1, 0]);
-    add(S(G.solidOf([[0, 1.8], [5.4, 0.1]], H, P), { tone: "hi" }), A.solid(H, [[0, 1.8], [5.4, 0.1]], { name: `${owner}.horn`, owner }), [cx, y0 + 19.4, z0 + 16]);
+    blk(cx - 3, cx + 3, y0 + 2.4, y0 + 15, z0 + 9, z0 + 13, "lo", 1.8);
+    blk(cx - 2.4, cx + 2.4, y0 + 5, y0 + 11, z0 + 13, z0 + 14.4, "mid", 0.8);
+    blk(cx - 2.8, cx + 2.8, y0 + 15, y0 + 21.4, z0 + 9, z0 + 15, "lo", 1.6, Dots([at([cx + 2.8, y0 + 19.6, z0 + 13.2])], { size: 0.5, tone: "hi" }));
+    const H = G.frameOf([cx, y0 + 19.4, z0 + 15], [0, 0, 1], [1, 0, 0], [0, 1, 0]);
+    add(S(G.solidOf([[0, 1.8], [5.4, 0.1]], H, Pp), { tone: "hi" }), A.solid(H, [[0, 1.8], [5.4, 0.1]], { name: `${owner}.horn`, owner }), [cx, y0 + 19.4, z0 + 16]);
   } else if (c === 5) {
     // Brachio Tank V: a long-necked tank on tracks
-    for (const sx of [-1, 1]) blk(sx > 0 ? cx + 3 : cx - 6, sx > 0 ? cx + 6 : cx - 3, y0 + 1, y0 + 22, z0, z0 + 4.4, "lo", 2.2, Ln(k.sideSeam({ x: sx > 0 ? cx + 3 : cx - 6, y: y0 + 1, w: 3, d: 21, r: 2.2 }, z0 + 2.2, P, 3), { tone: "faint" }));
+    for (const sx of [-1, 1]) blk(sx > 0 ? cx + 3 : cx - 6, sx > 0 ? cx + 6 : cx - 3, y0 + 1, y0 + 22, z0, z0 + 4.4, "lo", 2.2, Ln(k.sideSeam({ x: sx > 0 ? cx + 3 : cx - 6, y: y0 + 1, w: 3, d: 21, r: 2.2 }, z0 + 2.2, Pp, 3), { tone: "faint" }));
     blk(cx - 5, cx + 5, y0 + 3, y0 + 19, z0 + 4.4, z0 + 9.4, "mid", 1.6);
     blk(cx - 3.4, cx + 3.4, y0 + 5, y0 + 13, z0 + 9.4, z0 + 11.4, "hi", 1.2);
-    const axis = G.unit3([0, 0.42, 0.91]);
-    const N = G.frameAlong([cx, y0 + 13, z0 + 9.4], axis);
-    add(S(G.disc(0, 11.2, 1.6, N, P, { steps: 24 }), { tone: "hi" }), A.disc(N, 0, 11.2, 1.6, { name: `${owner}.neck`, owner }), G.add3([cx, y0 + 13, z0 + 9.4], G.mul3(axis, 5.6)));
-    sph(G.add3([cx, y0 + 13, z0 + 9.4], G.mul3(axis, 12.6)), 2.4, "hi");
+    const axis = G.unit3([0, 0.25, 0.97]);
+    const B = [cx, y0 + 16, z0 + 11.4];
+    sph(B, 2, "mid");
+    const N = G.frameAlong(B, axis);
+    add(S(G.disc(1.2, 8.8, 1.6, N, Pp, { steps: 24 }), { tone: "hi" }), A.disc(N, 1.2, 8.8, 1.6, { name: `${owner}.neck`, owner }), G.add3(B, G.mul3(axis, 5)));
+    sph(G.add3(B, G.mul3(axis, 10.6)), 2.4, "hi");
   }
   return parts;
 }
@@ -589,6 +593,24 @@ const RAIL_Z = [Z.deck, Z.deck + 8];
   }
 }
 
+// ---------- second, smaller mast forward of the main mast (position from memory, plain sail) ----------
+{
+  const fx = 112;
+  cyl("mast2.foot", fx, 0, 4.2, Z.deck, Z.deck + 4, { tone: "lo" }, { part: "mast", owner: "mast2", steps: 28, bevel: 0.3 });
+  cyl("mast2", fx, 0, 3, Z.deck + 4, 178, { tone: "hi" }, { part: "mast", owner: "mast2", steps: 24, inner: Ln([130, 160].map((z) => k.sideArc(fx, 0, 3, z, P, 16)).join(""), { tone: "faint" }) });
+  cyl("mast2.collar", fx, 0, 3.9, 178, 182, { tone: "mid" }, { part: "mast", owner: "mast2", steps: 24 });
+  cyl("mast2.upper", fx, 0, 3, 182, 186, { tone: "hi" }, { part: "mast", owner: "mast2", steps: 24 });
+  box("mast2.trees", [fx - 3, -10, 186], [fx + 3, 10, 187.6], { tone: "mid" }, { part: "mast", owner: "mast2", r: 0.6, steps: 2 });
+  cyl("mast2.top", fx, 0, 3, 187.6, 198, { tone: "hi" }, { part: "mast", owner: "mast2", steps: 24 });
+  cyl("mast2.cap", fx, 0, 3.6, 198, 200, { tone: "mid" }, { part: "mast", owner: "mast2", steps: 24 });
+  const YF = G.frameOf([fx + 5.4, -36, 180], [0, 1, 0], [1, 0, 0], [0, 0, 1]);
+  disc("sail2.yard", YF, 0, 72, 1.5, { tone: "mid" }, { part: "sail", owner: "mast2" });
+  const SF = G.frameOf([fx + 5.4, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+  const poly = [[-33, 178.5], [33, 178.5], [35, 155], [30, 140], [0, 137], [-30, 140], [-35, 155]];
+  prism("sail2", SF, poly, 0, 1, { tone: "hi" }, { part: "sail", owner: "mast2", inner: "" });
+  for (const side of [-1, 1]) line(`shroud2${side}`, [[fx - 1.5, side * 9, 186], [fx - 14, side * 30, Z.deck]], 0.4, { part: "mast", tone: "mid" });
+}
+
 // ---------- stern cabin: kitchen/dining below, library/navigation room above, tangerine trees ----------
 {
   const LOW = hullRing(-146, -92, { s: 0.9 });
@@ -620,12 +642,26 @@ A.settle(R, P);
 R.items.sort((a, b) => a.key - b.key);
 
 const groups = R.items.map((item, index) => `<g class="it" data-i="${index}" data-name="${item.name}"${item.attrs ?? ""}>${item.svg}</g>`);
-const svgBody = [`<defs>${CLIPS.join("")}</defs>`, ...STAND, `<g class="sn-puffs" data-puffs></g>`, `<g class="sn-ship" data-ship-root>${groups.join("")}</g>`];
+// back SVG: the stand and what the air blast passes in front of; canvas; front SVG: the ship; canvas for the Gaon blast
+const backBody = [...STAND, `<g class="sn-fb" data-fb-air><path class="sn-fb-air" d=""/></g>`, `<g class="sn-puffs" data-puffs></g>`];
+const frontBody = `<svg xmlns="http://www.w3.org/2000/svg" class="iso-svg sn-layer sn-front" viewBox="0 0 ${WIDTH} ${HEIGHT}" aria-hidden="true"><defs>${CLIPS.join("")}</defs><g class="sn-ship" data-ship-root>${groups.join("")}</g><g class="sn-fb" data-fb-gaon><path class="sn-fb-gaon" d=""/><path class="sn-fb-core" d=""/><circle class="sn-fb-mouth" r="0"/></g></svg>`;
+
+// ---------- Fig 2b: the selected channel's vehicle as a little machine on a low stage (detail.mjs) ----------
+const DW = 470;
+const DH = 290;
+const detailGroups = [0, 1, 2, 3, 4, 5].map((c) => {
+  const scene = buildScene(c, { W: DW, H: DH, azimuth: AZIMUTH, elevation: ELEVATION, audit: process.argv.includes("--audit") });
+  return `<g class="sn-detail" data-detail="${c}"${c === 1 ? "" : ' data-off=""'}>${scene.svg}</g>`;
+});
 
 // ---------- page data shared with the live script ----------
 const muzzle = [ENERGY.x0 - 6, 13, 61];
+const GAON = [176 + Math.sqrt(25 - 2.4 * 2.4) + 2, 0, 128.6];
 const DATA = {
   P,
+  W: WIDTH,
+  H: HEIGHT,
+  camera: glCamera(P),
   lift: k.axisVector(P, [0, 0, 1]),
   out: k.axisVector(P, [0, 1, 0]),
   up: k.axisVector(P, [0, 0, 1]),
@@ -637,6 +673,8 @@ const DATA = {
   PADDLE_OUT: PADDLE.out,
   dial: DIAL_ANGLES,
   barrels: BARRELS.length,
+  muzzle: [muzzle[0] + 4, muzzle[1], muzzle[2]],
+  gaon: GAON,
   puff: { at: muzzle, back: k.axisVector(P, [-1, 0, 0]), from: at(muzzle) },
   parts: PART_ORDER,
 };
@@ -646,19 +684,24 @@ const LIVE = readFileSync(join(HERE, "live.js"), "utf8");
 
 function pageFor(lang, theme) {
   const T = TEXT[lang];
-  const svg = k.figureSvg({ width: WIDTH, height: HEIGHT, label: T.svgLabel, body: svgBody });
+  const backSvg = k.figureSvg({ width: WIDTH, height: HEIGHT, label: T.svgLabel, body: backBody });
+  const svg = `${backSvg}<canvas class="sn-layer sn-gl sn-gl-air" aria-hidden="true"></canvas>${frontBody}<canvas class="sn-layer sn-gl sn-gl-gaon" aria-hidden="true"></canvas>`;
   const channels = T.channels
     .map((ch, c) => `<button type="button" class="sn-ch" data-ch="${c}" aria-pressed="false"><span class="sn-num">${c}</span>${escapeHtml(ch.name)}</button>`)
     .join("");
   const legend = PART_ORDER.map((id, i) => `<button type="button" class="sn-part" data-part="${id}" aria-pressed="false"><span class="sn-num">${String(i + 1).padStart(2, "0")}</span>${escapeHtml(T.parts[id].name)}</button>`).join("");
-  const plate = `<figure class="iso-figure sn-figure"><div class="iso-plate"><div class="iso-plate-corners" aria-hidden="true"><span class="iso-plate-corner" data-corner="fig">${T.fig}</span><span class="iso-plate-corner" data-corner="title">${escapeHtml(T.title)}</span><span class="iso-plate-corner" data-corner="hint">${escapeHtml(T.hint)}</span><span class="iso-plate-corner" data-corner="readout" data-readout></span></div><div class="iso-stage sn-stage" tabindex="0" role="group" aria-label="${escapeHtml(T.stageLabel)}">${svg}</div><span class="sn-sr" role="status" aria-live="polite" data-live></span></div>
+  const corners = (fig, title, hint, readout) => `<div class="iso-plate-corners" aria-hidden="true"><span class="iso-plate-corner" data-corner="fig">${fig}</span><span class="iso-plate-corner" data-corner="title">${escapeHtml(title)}</span><span class="iso-plate-corner" data-corner="hint">${escapeHtml(hint)}</span><span class="iso-plate-corner" data-corner="readout" ${readout}></span></div>`;
+  const detailSvg = k.figureSvg({ width: DW, height: DH, label: T.detail.label, body: detailGroups });
+  const detail = `<div class="iso-plate sn-detail-plate">${corners(T.detail.fig, T.detail.title, T.detail.hint, "data-detail-readout")}<div class="sn-detail-stage">${detailSvg}</div></div>`;
+  const plate = `<figure class="iso-figure sn-figure"><div class="iso-plate">${corners(T.fig, T.title, T.hint, "data-readout")}<div class="iso-stage sn-stage" tabindex="0" role="group" aria-label="${escapeHtml(T.stageLabel)}">${svg}</div><span class="sn-sr" role="status" aria-live="polite" data-live></span></div>
+${detail}
 <figcaption class="iso-legend sn-legend">
-<div class="sn-controls"><div class="sn-row" role="group" aria-label="${escapeHtml(T.channelsLabel)}">${channels}</div><div class="sn-row"><button type="button" class="sn-act" data-fire><span>${escapeHtml(T.fire)}</span><kbd>${T.fireKey}</kbd></button><button type="button" class="sn-act" data-refill><span>${escapeHtml(T.refill)}</span><kbd>${T.refillKey}</kbd></button><button type="button" class="sn-act" data-close><span>${escapeHtml(T.close)}</span><kbd>${T.closeKey}</kbd></button></div></div>
+<div class="sn-controls"><div class="sn-row" role="group" aria-label="${escapeHtml(T.channelsLabel)}">${channels}</div><div class="sn-row"><button type="button" class="sn-act" data-fire><span>${escapeHtml(T.fire)}</span><kbd>${T.fireKey}</kbd></button><button type="button" class="sn-act" data-gaon><span>${escapeHtml(T.gaonFire)}</span><kbd>G</kbd></button><button type="button" class="sn-act" data-refill><span>${escapeHtml(T.refill)}</span><kbd>${T.refillKey}</kbd></button><button type="button" class="sn-act" data-close><span>${escapeHtml(T.close)}</span><kbd>${T.closeKey}</kbd></button></div></div>
 <div class="sn-parts" role="group" aria-label="${escapeHtml(T.partsLabel)}">${legend}</div>
 <p class="iso-caption sn-caption" data-caption>${escapeHtml(T.caption)}</p>
 </figcaption></figure>`;
   const live = LIVE.replace("__DATA__", JSON.stringify(DATA)).replace("__TEXT__", JSON.stringify(T));
-  let html = k.pageHtml({ title: T.pageTitle, theme, body: `<style>${CSS}</style>${plate}`, script: kitScript() + live, width: 900 });
+  let html = k.pageHtml({ title: T.pageTitle, theme, body: `<style>${CSS}</style>${plate}`, script: kitScript() + glScript() + live, width: 900 });
   html = html.replace('<html lang="en">', `<html lang="${lang}">`);
   return html;
 }
@@ -676,4 +719,5 @@ for (const lang of ["ja", "en"]) {
 }
 console.log(`${R.items.length} items · ${R.solids.length} solids · scale ${KS.toFixed(3)}`);
 
+if (process.argv.includes("--audit")) console.log("--- main figure");
 A.auditOrExit(R, P, {});

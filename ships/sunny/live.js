@@ -1,10 +1,20 @@
 const D = __DATA__;
 const T = __TEXT__;
 const stage = document.querySelector(".sn-stage");
-const svg = stage.querySelector("svg");
-const root = svg.querySelector("[data-ship-root]");
-const puffLayer = svg.querySelector("[data-puffs]");
-const shadow = svg.querySelector(".sn-shadow");
+const backSvg = stage.querySelector("svg");
+const frontSvg = stage.querySelector(".sn-front");
+const root = frontSvg.querySelector("[data-ship-root]");
+const puffLayer = backSvg.querySelector("[data-puffs]");
+const shadow = backSvg.querySelector(".sn-shadow");
+const fbAir = backSvg.querySelector(".sn-fb-air");
+const fbGaon = frontSvg.querySelector(".sn-fb-gaon");
+const fbCore = frontSvg.querySelector(".sn-fb-core");
+const fbMouth = frontSvg.querySelector(".sn-fb-mouth");
+const gaonBtn = document.querySelector("[data-gaon]");
+const detailGroups = [...document.querySelectorAll("[data-detail]")];
+const detailReadout = document.querySelector("[data-detail-readout]");
+const detailSpin = document.querySelector("[data-dspin]");
+const LIGHT = document.body.dataset.theme === "light" ? 1 : 0;
 const readout = document.querySelector("[data-readout]");
 const liveEl = document.querySelector("[data-live]");
 const captionEl = document.querySelector("[data-caption]");
@@ -16,10 +26,6 @@ const closeBtn = document.querySelector("[data-close]");
 const still = matchMedia("(prefers-reduced-motion: reduce)");
 const fmt = (s, v = {}) => s.replace(/\{(\w+)\}/g, (_, key) => (key in v ? v[key] : ""));
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
-const smooth = (a, b, x) => {
-  const t = clamp((x - a) / (b - a), 0, 1);
-  return t * t * (3 - 2 * t);
-};
 
 const items = [...root.children].filter((el) => el.classList.contains("it"));
 const shipItems = items.filter((el) => el.hasAttribute("data-ship"));
@@ -82,7 +88,10 @@ const MAX = barrelEls.length;
 const used = new Set();
 const cola = () => MAX - used.size;
 
-let burst = null; // { phase, t, take: [] }
+let coupState = null; // { phase, t, take: [] }
+let gaon = null; // { phase, t, take: [] }
+const GAON_COST = 2; // the model's own gauge: barrels one Gaon shot draws from the rack
+let stillFx = null; // reduced motion: one representative frame, held briefly
 let lift = 0;
 let liftShown = -1;
 
@@ -100,7 +109,7 @@ const puffEls = Array.from({ length: PUFFS }, () => {
 let mechText = "";
 let pinned = null; // part chosen from the legend or by a click
 let hovered = null;
-let auto = null; // part lit by the tour or by a burst
+let auto = null; // part lit by the tour or by a coupState
 let lastLive = "";
 function say(text) {
   if (readout.textContent !== text) readout.textContent = text;
@@ -118,13 +127,14 @@ function setMech(text) {
 function captionFor() {
   const part = hovered || pinned || auto;
   if (part) return T.parts[part].caption;
-  if (burst) return T.parts.coup.caption;
+  if (coupState) return T.parts.coup.caption;
+  if (gaon) return T.parts.gaon.caption;
   if (channel !== null) return T.channels[channel].caption;
   return T.caption;
 }
 function refreshWords() {
   const part = hovered || pinned || auto;
-  if (part && !(burst && part === "coup")) say(fmt(T.read.part, { n: D.parts.indexOf(part) + 1, name: T.parts[part].name }));
+  if (part && !(coupState && part === "coup") && !(gaon && part === "gaon")) say(fmt(T.read.part, { n: D.parts.indexOf(part) + 1, name: T.parts[part].name }));
   else say(mechText);
   const caption = captionFor();
   if (captionEl.textContent !== caption) captionEl.textContent = caption;
@@ -155,7 +165,7 @@ function choose() {
 
 // ---------- actions ----------
 function setChannel(c) {
-  if (burst) return;
+  if (coupState || gaon) return;
   channel = c;
   chButtons.forEach((b) => b.setAttribute("aria-pressed", String(Number(b.dataset.ch) === c)));
   if (c === null) {
@@ -168,21 +178,34 @@ function setChannel(c) {
   run();
 }
 function fire() {
-  if (burst) return;
+  if (coupState || gaon) return;
   if (cola() < 3) {
     setMech(T.read.empty);
     announce(T.live.empty);
     return;
   }
   setChannel(null);
-  burst = { phase: "arm", t: 0, take: [] };
+  coupState = { phase: "arm", t: 0, take: [] };
   auto = "coup";
   setMech(T.read.arming);
   choose();
   run();
 }
+function fireGaon() {
+  if (coupState || gaon) return;
+  if (cola() < GAON_COST) {
+    setMech(T.read.empty);
+    announce(T.live.empty);
+    return;
+  }
+  gaon = { phase: "charge", t: 0, take: [...Array(MAX).keys()].filter((i) => !used.has(i)).slice(0, GAON_COST) };
+  auto = "gaon";
+  setMech(fmt(T.read.gaonLoading, { n: 0, cost: GAON_COST }));
+  choose();
+  run();
+}
 function refill() {
-  if (burst) return;
+  if (coupState || gaon) return;
   used.clear();
   for (const el of barrelEls) {
     el.removeAttribute("data-empty");
@@ -194,6 +217,7 @@ function refill() {
 }
 function syncButtons() {
   fireBtn.toggleAttribute("disabled", cola() < 3);
+  gaonBtn.toggleAttribute("disabled", cola() < GAON_COST);
 }
 
 function dockClosed() {
@@ -211,11 +235,11 @@ let idleTimer = 0;
 
 function stepBays(dt, calm) {
   let moving = false;
-  const target = channel === null || burst ? HOME : D.dial[channel];
+  const target = channel === null || coupState ? HOME : D.dial[channel];
   moving = follow(dial, target, dt, 0.16, calm) || moving;
   const arrived = Math.abs(dial.x - target) < 1.5;
   for (const b of bays) {
-    const want = !burst && channel === b.c && arrived;
+    const want = !coupState && channel === b.c && arrived;
     if (b.c === 0) {
       moving = follow(b.veh, want ? 1 : 0, dt, 0.22, calm) || moving;
     } else if (want) {
@@ -273,20 +297,20 @@ function place() {
 
 const liftAt = (t) => D.LIFT * smooth(0, 0.8, t) * (1 - smooth(1.7, 3.9, t));
 function stepBurst(dt, calm) {
-  if (!burst) return false;
-  burst.t += dt;
-  if (burst.phase === "arm") {
+  if (!coupState) return false;
+  coupState.t += dt;
+  if (coupState.phase === "arm") {
     if (dockClosed()) {
-      burst.phase = "load";
-      burst.t = 0;
-      burst.take = [...Array(MAX).keys()].filter((i) => !used.has(i)).slice(0, 3);
+      coupState.phase = "load";
+      coupState.t = 0;
+      coupState.take = [...Array(MAX).keys()].filter((i) => !used.has(i)).slice(0, 3);
     }
     return true;
   }
-  if (burst.phase === "load") {
+  if (coupState.phase === "load") {
     const step = calm ? 0 : 0.32;
-    const n = calm ? 3 : Math.min(3, Math.floor(burst.t / step));
-    burst.take.forEach((i, k) => {
+    const n = calm ? 3 : Math.min(3, Math.floor(coupState.t / step));
+    coupState.take.forEach((i, k) => {
       const el = barrelEls[i];
       if (k < n) {
         el.removeAttribute("data-draining");
@@ -295,9 +319,9 @@ function stepBurst(dt, calm) {
       } else if (k === n) el.setAttribute("data-draining", "");
     });
     setMech(fmt(T.read.loading, { n: Math.min(3, n) }));
-    if (n >= 3 && burst.t >= (calm ? 0 : 3 * step + 0.2)) {
-      burst.phase = "fly";
-      burst.t = 0;
+    if (n >= 3 && coupState.t >= (calm ? 0 : 3 * step + 0.2)) {
+      coupState.phase = "fly";
+      coupState.t = 0;
       auto = null;
       choose();
       setMech(fmt(T.read.fired, { cola: cola(), max: MAX }));
@@ -306,14 +330,15 @@ function stepBurst(dt, calm) {
     }
     return true;
   }
-  if (burst.phase === "fly") {
-    const t = burst.t;
+  if (coupState.phase === "fly") {
+    const t = coupState.t;
     lift = calm ? 0 : liftAt(t);
     drawPuffs(calm ? -1 : t);
     if (t > 4.1 || calm) {
+      if (calm) stillFx = { kind: "air", left: 1.8 };
       lift = 0;
       drawPuffs(-1);
-      burst = null;
+      coupState = null;
       auto = null;
       setMech(fmt(T.read.landed, { cola: cola(), max: MAX }));
       choose();
@@ -322,6 +347,69 @@ function stepBurst(dt, calm) {
     return true;
   }
   return false;
+}
+
+const CHARGE = 1.0;
+function stepGaon(dt, calm) {
+  if (!gaon) return false;
+  gaon.t += dt;
+  const n = calm ? GAON_COST : Math.min(GAON_COST, Math.floor((gaon.t / CHARGE) * (GAON_COST + 0.6)));
+  gaon.take.forEach((i, k) => {
+    const el = barrelEls[i];
+    if (k < n) {
+      el.removeAttribute("data-draining");
+      el.setAttribute("data-empty", "");
+      used.add(i);
+    } else if (k === n) el.setAttribute("data-draining", "");
+  });
+  if (gaon.phase === "charge") {
+    setMech(fmt(T.read.gaonLoading, { n, cost: GAON_COST }));
+    if (gaon.t >= CHARGE || calm) {
+      gaon.phase = "fire";
+      gaon.t = calm ? 0 : gaon.t - CHARGE;
+      setMech(fmt(T.read.gaonFired, { cola: cola(), max: MAX }));
+      announce(fmt(T.live.gaon, { cola: cola() }));
+      syncButtons();
+    }
+    return true;
+  }
+  if (gaon.t > 2.6 || calm) {
+    if (calm) stillFx = { kind: "gaon", left: 1.8 };
+    gaon = null;
+    auto = null;
+    choose();
+    return false;
+  }
+  return true;
+}
+
+// ---------- effect envelopes: every uniform rides an attack and a decay ----------
+function airAt(age) {
+  if (age < 0) return null;
+  return {
+    uAge: age,
+    uJet: burst_(age, 0.07, 0.55),
+    uLen: 120 * (1 - Math.exp(-age / 0.18)),
+    uRing: burst_(age, 0.05, 0.28),
+    uRingR: 5 + 62 * (1 - Math.exp(-age / 0.35)),
+    uRingS: 5 + 34 * (1 - Math.exp(-age / 0.3)),
+    uMist: burst_(age - 0.05, 0.3, 1.0) * 1.6,
+    uMistS: 18 + 46 * (1 - Math.exp(-age / 0.8)),
+    uMistR: 14 + 30 * (1 - Math.exp(-age / 0.9)),
+  };
+}
+function gaonAt(phase, t) {
+  if (phase === "charge") return { uCharge: smooth(0, CHARGE, t), uBeam: 0, uLen: 0, uFlash: 0 };
+  const age = t;
+  return {
+    uCharge: 1 - smooth(0, 0.35, age),
+    uBeam: burst_(age, 0.07, 0.5),
+    uLen: 110 * (1 - Math.exp(-age / 0.12)),
+    uFlash: burst_(age, 0.04, 0.13),
+  };
+}
+function burst_(age, rise, fall) {
+  return burst(age, rise, fall);
 }
 
 function drawPuffs(t) {
@@ -346,6 +434,209 @@ function drawPuffs(t) {
   });
 }
 
+
+// ---------- WebGL: the air blast behind the ship, the Gaon blast in front of it ----------
+const DITHER = `
+vec4 over(vec4 a,vec4 b){return a+b*(1.-a.a);}
+float edgeFade(vec2 vb){return smoothstep(2.,18.,vb.x)*smoothstep(2.,18.,uView.x-vb.x)*smoothstep(2.,18.,vb.y)*smoothstep(2.,18.,uView.y-vb.y);}
+vec4 finish(vec4 ink){
+  float n=(hash12(gl_FragCoord.xy+fract(uTime*.61)*91.)+hash12(gl_FragCoord.yx*1.37+fract(uTime*.37)*57.)-1.)/255.;
+  ink=max(ink+n*smoothstep(0.,1.5/255.,ink.a),0.);
+  ink.a=min(ink.a,1.);
+  ink.rgb=min(ink.rgb,vec3(ink.a));
+  return ink;
+}
+// closest approach of this pixel's ray to the axis O + s*D: returns (s along the axis, distance, t along the ray)
+vec3 axisHit(vec3 p0,vec3 V,vec3 O,vec3 D){
+  vec3 w0=p0-O;
+  float b=dot(V,D),d=dot(V,w0),e=dot(D,w0);
+  float den=max(1.-b*b,1e-4);
+  float s=(e-b*d)/den;
+  float t=(b*e-d)/den;
+  return vec3(s,length(O+s*D-(p0+t*V)),t);
+}`;
+const AIR = `
+uniform float uJet,uLen,uRing,uRingR,uRingS,uMist,uMistS,uMistR,uAge,uLift,uLight;
+uniform vec3 uMuzzle;
+${DITHER}
+void main(){
+  if(uJet+uRing+uMist<.0004){gl_FragColor=vec4(0.);return;}
+  vec2 vb=viewOf(gl_FragCoord.xy);
+  vec3 V=towardViewer();
+  vec3 p0=rayOf(vb);
+  vec3 M=uMuzzle+vec3(0.,0.,uLift);
+  vec3 D=vec3(-1.,0.,0.);
+  vec3 h=axisHit(p0,V,M,D);
+  float s=h.x,r=h.y;
+  vec3 pr=p0+h.z*V;
+  float sig=3.+.2*max(s,0.);
+  float along=smoothstep(-1.5,3.,s)*(1.-smoothstep(uLen-26.,uLen,s))*exp(-max(s,0.)/100.);
+  float turb=.55+.9*fbm3(pr*.09+vec3(uAge*2.4,0.,0.));
+  float jet=uJet*along*exp(-r*r/(sig*sig))*(9./sig)*turb;
+  vec3 C=M+D*uMistS+vec3(0.,0.,uAge*5.);
+  float tc=dot(C-p0,V);
+  vec3 nearC=p0+tc*V;
+  float dm=length(nearC-C);
+  float mist=uMist*exp(-dm*dm/(uMistR*uMistR))*(.4+.9*fbm3(nearC*.06+vec3(uAge*.8,0.,uAge*.5)));
+  float tr=(M.x-uRingS-p0.x)/V.x;
+  vec3 qr=p0+tr*V;
+  float rr=length(qr.yz-M.yz);
+  float wr=1.3+uRingR*.05;
+  float ring=uRing*exp(-pow((rr-uRingR)/wr,2.));
+  float dens=jet+mist;
+  float a=(1.-exp(-dens*1.2))*mix(1.,1.15,uLight);
+  float ra=.8*(1.-exp(-ring*1.6));
+  float body=smoothstep(.3,1.6,jet);
+  vec3 haze=mix(mix(vec3(.46,.49,.53),vec3(.84,.87,.9),body),mix(vec3(.72,.77,.83),vec3(.56,.62,.7),body),uLight);
+  vec3 ringC=mix(vec3(.9,.93,.96),vec3(.46,.52,.6),uLight);
+  gl_FragColor=finish(over(vec4(ringC*ra,ra),vec4(haze*a,a))*edgeFade(vb));
+}`;
+const GAON_GL = `
+uniform float uCharge,uBeam,uLen,uFlash,uLight;
+uniform vec3 uStart;
+${DITHER}
+vec4 inkFor(vec3 seen,float cover){vec3 ab=1.-seen;float a=max(max(ab.r,max(ab.g,ab.b)),cover);return vec4(vec3(a)-ab,a);}
+void main(){
+  if(uCharge+uBeam+uFlash<.0004){gl_FragColor=vec4(0.);return;}
+  vec2 vb=viewOf(gl_FragCoord.xy);
+  vec3 V=towardViewer();
+  vec3 p0=rayOf(vb);
+  vec3 S=uStart;
+  vec3 h=axisHit(p0,V,S,vec3(1.,0.,0.));
+  float s=h.x,r=h.y;
+  float rho=1.3+.03*max(s,0.)+.7*uBeam;
+  float along=smoothstep(-1.,4.,s)*(1.-smoothstep(uLen-18.,uLen,s))*exp(-max(s,0.)/170.);
+  float flick=.85+.3*noise3(vec3(s*.12-uTime*9.,r*.4,uTime*3.));
+  float core=uBeam*along*exp(-r*r/(rho*rho))*flick;
+  float halo=uBeam*along*exp(-r*r/(9.*rho*rho))*.35;
+  float tc=dot(S-p0,V);
+  float dc=length(p0+tc*V-S);
+  float rb=1.4+3.4*uCharge;
+  float ball=uCharge*exp(-dc*dc/(rb*rb))*1.3;
+  float flash=uFlash*exp(-dc*dc/25.)*1.3;
+  float en=core*1.6+ball+flash;
+  vec3 col=tonemap(vec3(1.,.5,.14)*(en+halo)+vec3(1.,.92,.75)*en*en*.5,1.25);
+  vec4 dark=vec4(col,max(col.r,max(col.g,col.b)));
+  float e2=1.-exp(-1.5*en);
+  vec3 seen=mix(vec3(1.),vec3(.97,.5,.1),smoothstep(.04,.5,e2));
+  seen=mix(seen,vec3(1.,.86,.55),smoothstep(.55,.85,e2));seen=mix(seen,vec3(1.,.96,.84),smoothstep(.86,.99,e2));
+  vec4 light=inkFor(seen,.92*smoothstep(.6,.92,e2));
+  gl_FragColor=finish(mix(dark,light,uLight)*edgeFade(vb));
+}`;
+const airLayer = glLayer({ canvas: stage.querySelector(".sn-gl-air"), fragment: AIR, view: [D.W, D.H], camera: D.camera, uniforms: ["uJet", "uLen", "uRing", "uRingR", "uRingS", "uMist", "uMistS", "uMistR", "uAge", "uLift"], fixed: { uLight: LIGHT, uMuzzle: D.muzzle } });
+const gaonLayer = glLayer({ canvas: stage.querySelector(".sn-gl-gaon"), fragment: GAON_GL, view: [D.W, D.H], camera: D.camera, uniforms: ["uCharge", "uBeam", "uLen", "uFlash"], fixed: { uLight: LIGHT, uStart: D.gaon } });
+if (airLayer) stage.setAttribute("data-gl-air", "");
+if (gaonLayer) stage.setAttribute("data-gl-gaon", "");
+let airDrawn = false;
+let gaonDrawn = false;
+let fxClock = 0;
+
+// a tapered beam in screen space between two world points, for the no-WebGL fallback
+function beamPath(a, b, r0, r1) {
+  const A0 = iso(a, D.P);
+  const B0 = iso(b, D.P);
+  const dx = B0[0] - A0[0];
+  const dy = B0[1] - A0[1];
+  const len = Math.hypot(dx, dy) || 1;
+  const nx = -dy / len;
+  const ny = dx / len;
+  const k = D.scale;
+  const p = (P0, r, sgn) => `${(P0[0] + nx * r * k * sgn).toFixed(1)} ${(P0[1] + ny * r * k * sgn).toFixed(1)}`;
+  return `M${p(A0, r0, 1)}L${p(B0, r1, 1)}Q${(B0[0] + (dx / len) * r1 * k).toFixed(1)} ${(B0[1] + (dy / len) * r1 * k).toFixed(1)} ${p(B0, r1, -1)}L${p(A0, r0, -1)}Z`;
+}
+function drawAir(u) {
+  if (airLayer) {
+    if (u) {
+      airLayer.draw({ ...u, uLift: lift }, fxClock);
+      airDrawn = true;
+    } else if (airDrawn) {
+      airLayer.clear();
+      airDrawn = false;
+    }
+    return;
+  }
+  if (!u) {
+    fbAir.setAttribute("d", "");
+    return;
+  }
+  const M = [D.muzzle[0], D.muzzle[1], D.muzzle[2] + lift];
+  const len = Math.max(1, u.uLen * 0.8);
+  fbAir.setAttribute("d", beamPath(M, [M[0] - len, M[1], M[2]], 2.2, 2.2 + 0.17 * len));
+  fbAir.style.opacity = (0.8 * u.uJet).toFixed(3);
+}
+function drawGaon(u) {
+  if (gaonLayer) {
+    if (u) {
+      gaonLayer.draw(u, fxClock);
+      gaonDrawn = true;
+    } else if (gaonDrawn) {
+      gaonLayer.clear();
+      gaonDrawn = false;
+    }
+    return;
+  }
+  if (!u) {
+    fbGaon.setAttribute("d", "");
+    fbCore.setAttribute("d", "");
+    fbMouth.setAttribute("r", "0");
+    return;
+  }
+  const S0 = D.gaon;
+  const len = Math.max(0.5, u.uLen * 0.85);
+  fbGaon.setAttribute("d", u.uBeam > 0.002 ? beamPath(S0, [S0[0] + len, S0[1], S0[2]], 1.8, 1.8 + 0.035 * len) : "");
+  fbGaon.style.opacity = Math.min(1, u.uBeam * 1.1).toFixed(3);
+  fbCore.setAttribute("d", u.uBeam > 0.002 ? beamPath(S0, [S0[0] + len * 0.8, S0[1], S0[2]], 0.6, 0.6 + 0.012 * len) : "");
+  fbCore.style.opacity = Math.min(1, u.uBeam * 1.1).toFixed(3);
+  const m = iso(S0, D.P);
+  const glow = Math.max(u.uCharge, u.uFlash);
+  fbMouth.setAttribute("cx", m[0].toFixed(1));
+  fbMouth.setAttribute("cy", m[1].toFixed(1));
+  fbMouth.setAttribute("r", ((1.4 + 3.4 * glow) * D.scale).toFixed(2));
+  fbMouth.style.opacity = Math.min(1, glow).toFixed(3);
+}
+function stepEffects(dt, calm) {
+  fxClock += calm ? 0 : dt;
+  let air = null;
+  let gl2 = null;
+  if (coupState && coupState.phase === "fly" && !calm) air = airAt(coupState.t);
+  if (gaon && !calm) gl2 = gaonAt(gaon.phase, gaon.t);
+  if (stillFx) {
+    stillFx.left -= dt;
+    if (stillFx.kind === "air") air = airAt(0.35);
+    else gl2 = gaonAt("fire", 0.25);
+    if (stillFx.left <= 0) {
+      stillFx = null;
+      air = null;
+      gl2 = null;
+    }
+  }
+  if (air && air.uJet + air.uRing + air.uMist < 1e-3 && coupState && coupState.t > 1) air = null;
+  if (gl2 && gl2.uCharge + gl2.uBeam + gl2.uFlash < 1e-3 && gaon && gaon.phase === "fire" && gaon.t > 0.5) gl2 = null;
+  drawAir(air);
+  drawGaon(gl2);
+  return Boolean(air || gl2 || stillFx);
+}
+addEventListener("resize", () => run());
+
+// ---------- Fig 2b: the selected channel's vehicle ----------
+let shownDetail = 1;
+let detailText = "";
+function syncDetail() {
+  const c = channel === null ? shownDetail : channel;
+  if (c !== shownDetail || !detailText) {
+    shownDetail = c;
+    for (const g of detailGroups) {
+      if (Number(g.dataset.detail) === c) g.removeAttribute("data-off");
+      else g.setAttribute("data-off", "");
+    }
+  }
+  const text = fmt(T.read.channel, { c, name: T.channels[c].name });
+  if (text !== detailText) {
+    detailText = text;
+    detailReadout.textContent = text;
+  }
+}
+
 // ---------- idle tour ----------
 const TOUR = [
   [() => setChannel(1), 2.8],
@@ -359,6 +650,10 @@ const TOUR = [
     if (cola() < 3) refill();
     fire();
   }, 6.4],
+  [() => {
+    if (cola() < GAON_COST) refill();
+    fireGaon();
+  }, 4.2],
   ...D.parts.map((id) => [() => {
     auto = id;
     choose();
@@ -372,7 +667,7 @@ const TOUR = [
 function stepTour(dt) {
   if (!touring) return false;
   tourWait -= dt;
-  if (tourWait <= 0 && !burst) {
+  if (tourWait <= 0 && !coupState && !gaon) {
     const [act, wait] = TOUR[tourAt % TOUR.length];
     tourAt++;
     act();
@@ -383,7 +678,7 @@ function stepTour(dt) {
 function takeOver() {
   if (touring) {
     touring = false;
-    if (!burst) auto = null;
+    if (!coupState) auto = null;
     choose();
   }
   clearTimeout(idleTimer);
@@ -402,6 +697,8 @@ function tick(now) {
   const calm = still.matches;
   let busy = stepTour(dt);
   busy = stepBurst(dt, calm) || busy;
+  busy = stepGaon(dt, calm) || busy;
+  busy = stepEffects(dt, calm) || busy;
   busy = stepBays(dt, calm) || busy;
   const paddle = bays[0].veh.x;
   if (paddle > 0.5 && !calm) {
@@ -409,6 +706,8 @@ function tick(now) {
     busy = true;
   }
   place();
+  syncDetail();
+  if (detailSpin) detailSpin.setAttribute("transform", `rotate(${spin.toFixed(1)})`);
   frame = visible && busy ? requestAnimationFrame(tick) : 0;
 }
 function run() {
@@ -419,7 +718,7 @@ function run() {
 }
 
 // ---------- input ----------
-svg.addEventListener("pointerover", (e) => {
+stage.addEventListener("pointerover", (e) => {
   const el = e.target.closest(".it[data-part]");
   const id = el ? el.dataset.part : null;
   if (id !== hovered) {
@@ -433,7 +732,7 @@ stage.addEventListener("pointerleave", () => {
     choose();
   }
 });
-svg.addEventListener("click", (e) => {
+stage.addEventListener("click", (e) => {
   const el = e.target.closest(".it[data-part]");
   if (!el) return;
   takeOver();
@@ -442,6 +741,7 @@ svg.addEventListener("click", (e) => {
   if (name.startsWith("shutter")) return setChannel(channel === Number(name.slice(7)) ? null : Number(name.slice(7)));
   if (name === "paddle") return setChannel(channel === 0 ? null : 0);
   if (el.dataset.part === "coup") return fire();
+  if (el.dataset.part === "gaon") return fireGaon();
   pinned = pinned === el.dataset.part ? null : el.dataset.part;
   choose();
 });
@@ -464,6 +764,10 @@ fireBtn.addEventListener("click", () => {
   takeOver();
   fire();
 });
+gaonBtn.addEventListener("click", () => {
+  takeOver();
+  fireGaon();
+});
 refillBtn.addEventListener("click", () => {
   takeOver();
   refill();
@@ -484,6 +788,9 @@ window.addEventListener("keydown", (e) => {
     takeOver();
     fire();
     e.preventDefault();
+  } else if (e.key === "g" || e.key === "G") {
+    takeOver();
+    fireGaon();
   } else if (e.key === "r" || e.key === "R") {
     takeOver();
     refill();
@@ -547,12 +854,19 @@ fixCaption();
 window.addEventListener("resize", fixCaption);
 window.addEventListener("load", postHeight);
 window.addEventListener("resize", postHeight);
-if ("ResizeObserver" in window) new ResizeObserver(postHeight).observe(pageEl);
+let heightTimer = 0;
+const postSoon = () => {
+  clearTimeout(heightTimer);
+  heightTimer = setTimeout(postHeight, 60);
+};
+if ("ResizeObserver" in window) new ResizeObserver(postSoon).observe(pageEl);
+setInterval(postHeight, 1000);
 
 mechText = idleText();
 syncButtons();
 choose();
 place();
+syncDetail();
 postHeight();
 if (still.matches) touring = false;
 run();

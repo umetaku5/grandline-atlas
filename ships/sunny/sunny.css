@@ -54,3 +54,25 @@ html,body{background:var(--anatomy-page)}
 @media (max-width:560px){.sn-legend button{font-size:11.5px;padding:4px 7px}}
 .sn-shadow{fill-opacity:.45}
 @media (max-width:560px){.iso-plate{overflow:hidden}.sn-stage .iso-svg{width:120%;max-width:none;margin:-4% -10% -2%}}
+/* layer stack: back SVG, air canvas, front SVG (the ship), Gaon canvas */
+.sn-stage>svg,.sn-stage>canvas{display:block;width:100%;height:auto}
+.sn-stage>.sn-layer{position:absolute;inset:0;height:100%!important;pointer-events:none}
+.sn-stage>.sn-front .it{pointer-events:visiblePainted}
+.iso:not([data-theme="light"]) .sn-gl-gaon{mix-blend-mode:screen}
+.sn-stage[data-gl-air] [data-fb-air],.sn-stage[data-gl-air] .sn-puffs{display:none}
+.sn-stage[data-gl-gaon] [data-fb-gaon]{display:none}
+.sn-fb-air{fill:var(--anatomy-shade-1);stroke:var(--anatomy-lo);stroke-width:.5px;vector-effect:non-scaling-stroke}
+.sn-fb-gaon{fill:#f08a1e;mix-blend-mode:multiply;stroke:none}
+.sn-fb-core{fill:#fff2d2;stroke:none}
+.sn-fb-mouth{fill:#ffd9a0;stroke:#f08a1e;stroke-width:.6px;vector-effect:non-scaling-stroke}
+.iso[data-theme="dark"] .sn-fb-gaon{fill:#ff9a3c;mix-blend-mode:screen}
+/* Fig 2b */
+.sn-detail-plate{margin-top:14px}
+.sn-detail-stage{margin:0 auto}
+.sn-detail{transition:opacity .35s var(--anatomy-ease)}
+.sn-detail[data-off]{opacity:0;visibility:hidden;transition:opacity .35s var(--anatomy-ease),visibility 0s linear .35s}
+@media (max-width:560px){.sn-detail-plate{padding:40px 8px 56px}}
+@media (max-width:560px){.sn-detail-plate{overflow:hidden}.sn-detail-stage .iso-svg{width:130%;max-width:none;margin:-6% -15% -4%}}
+/* the black rhino: a darker token set for its body in the light theme */
+.iso[data-theme="light"] .sn-black{--anatomy-paper:#55555a;--anatomy-face:#5e5e63;--anatomy-top:#6a6a70;--anatomy-shade-0:#3c3c40;--anatomy-shade-1:#46464a;--anatomy-shade-2:#505055;--anatomy-shade-3:#5a5a5f;--anatomy-hi:#e6e6e8;--anatomy-mid:#a9a9ae;--anatomy-lo:#808086;--anatomy-faint:#6e6e74;--anatomy-lit:#ffffff;--anatomy-lit-top:#9a9aa0;--anatomy-lit-shade:#7a7a80;--anatomy-dot:#e6e6e8}
+.iso[data-theme="dark"] .sn-black{--anatomy-paper:#0c0c0c;--anatomy-top:#151515;--anatomy-shade-0:#080808;--anatomy-shade-1:#0a0a0a;--anatomy-shade-2:#0d0d0d;--anatomy-shade-3:#101010}
