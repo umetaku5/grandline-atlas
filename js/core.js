@@ -53,7 +53,7 @@
 
   // ---- 物語の時間(タイムスライダー) ----
   // OP.time: null = 全期間 / 数値 = その編(order)まで読んだ時点
-  OP.time = null;
+  OP.time = OP.restoreTime != null ? OP.restoreTime : null;
   const ord = (id, fallback) => (id ? OP.arcOrder(id) : fallback);
   OP.charVisibleAt = (c, t = OP.time) => t == null || OP.arcOrder(c.firstArc) <= t;
   OP.relSince = (r) => {
@@ -74,11 +74,15 @@
     window.dispatchEvent(new Event("op-time"));
   };
   OP.timeLabel = (t = OP.time) => (t == null ? "全期間" : (OP.arcByOrder(t) || {}).name || "");
+  OP.stripArc = (name) => String(name || "").replace(/編$| Arc$| Saga$/, "");
   OP.periodLabel = (since, until) => {
     if (!since && !until) return "";
-    const n = (id) => (OP.arc(id) ? OP.arc(id).name.replace(/編$/, "") : "");
+    const n = (id) => (OP.arc(id) ? OP.stripArc(OP.arc(id).name) : "");
+    if (OP.lang === "en") return since && until ? (since === until ? n(since) : `${n(since)} to ${n(until)}`) : since ? `from ${n(since)}` : `until ${n(until)}`;
     return `${since ? n(since) : ""}〜${until ? n(until) : ""}`;
   };
+  // 一覧などで使う短い名前(日本語は「・」の最後、英語は最後の単語)
+  OP.short = (name) => (OP.lang === "en" ? String(name).split(" ").pop() : String(name).split("・").pop());
   // スライダーUI: どのビューに置いても同じ OP.time を共有する
   let playTimer = null;
   OP.timeSlider = () => `<div class="tslider" data-tslider>
@@ -172,6 +176,7 @@
   OP.arcChip = (id) => (arcById.has(id) ? `<a class="chip plain" data-open="arc:${id}" href="#">${esc(arcById.get(id).name)}</a>` : "");
   OP.formatBounty = (n) => {
     if (n == null) return "";
+    if (OP.lang === "en") return `${n.toLocaleString("en-US")} berries`;
     if (n === 0) return "0ベリー";
     const oku = Math.floor(n / 1e8), man = Math.floor((n % 1e8) / 1e4), rest = n % 1e4;
     return (oku ? oku + "億" : "") + (man ? man + "万" : "") + (rest ? rest : "") + "ベリー";
@@ -240,7 +245,7 @@
     const other = r.from === me ? r.to : r.from;
     const res = r.winner === "draw" ? "引き分け" : r.winner === "none" ? "決着なし" : (r.winner === "from") === (r.from === me) ? "勝ち" : "負け";
     const cls = { 勝ち: "win", 負け: "lose" }[res] || "draw";
-    return `<div class="rel-row"><span class="result ${cls}">${res}</span>${OP.chip(other)}<span class="rel-label">${esc(r.label)}${r.arc && OP.arc(r.arc) ? "・" + esc(OP.arc(r.arc).name) : ""}</span></div>`;
+    return `<div class="rel-row"><span class="result ${cls}">${res}</span>${OP.chip(other)}<span class="rel-label">${esc(r.label)}${r.arc && OP.arc(r.arc) ? OP.SEP + esc(OP.arc(r.arc).name) : ""}</span></div>`;
   };
   OP.battleRow = battleRow;
   // 懸賞金推移の小さな折れ線
@@ -269,7 +274,7 @@
     const b = OP.bountyOf(c.id);
     const bountyHist = b ? sparkline(b.history) + `<div class="b-hist">${b.history.map((h) => `<span>${esc(OP.formatBounty(h.value))}<small>${h.arc && OP.arc(h.arc) ? esc(OP.arc(h.arc).name) : ""}</small></span>`).join("")}</div>` : "";
     const memberships = (c.memberships || []).map((m) => `<div class="rel-row">${OP.chip(m.faction)}<span class="rel-label">${esc(OP.periodLabel(m.since || c.firstArc, m.until) || "")}</span></div>`).join("");
-    const posts = OP.positions.flatMap((p) => (p.holders || []).filter((h) => h.char === c.id).map((h) => `<div class="rel-row"><span class="chip plain">${esc(p.name)}</span><span class="rel-label">${esc(OP.periodLabel(h.since, h.until) || "物語開始前〜")}${h.note ? "・" + esc(h.note) : ""}</span></div>`)).join("");
+    const posts = OP.positions.flatMap((p) => (p.holders || []).filter((h) => h.char === c.id).map((h) => `<div class="rel-row"><span class="chip plain">${esc(p.name)}</span><span class="rel-label">${esc(OP.periodLabel(h.since, h.until) || OP.t("物語開始前〜"))}${h.note ? OP.SEP + esc(h.note) : ""}</span></div>`)).join("");
     const fams = OP.familiesOf(c.id);
     return head(c.id, "人物", c.name, c.alias, c.latest) +
       facts([
@@ -278,7 +283,7 @@
         ["役職", esc(c.role || "") + (c.rank ? ` <span class="muted">(${esc(RANK[c.rank])})</span>` : "")],
         ["懸賞金", c.bounty != null ? `<span class="bounty">${OP.formatBounty(c.bounty)}</span>` : ""],
         ["悪魔の実", fruit],
-        ["覇気", (c.haki || []).join("・")],
+        ["覇気", (c.haki || []).map(OP.t).join(OP.lang === "en" ? ", " : "・")],
         ["状態", OP.statusLabel[c.status] || ""],
         ["初登場", OP.arcChip(c.firstArc)],
         ["戦績", battles.length ? `${wins}勝 ${losses}敗${battles.length - wins - losses ? ` ${battles.length - wins - losses}分・決着なし` : ""}` : ""]
@@ -359,9 +364,9 @@
       sec("この編で提示された謎", OP.chips(OP.mysteries.filter((m) => m.arc === a.id).map((m) => m.id)));
   }
   function renderFruit(f) {
-    const holders = (f.holders || []).map((h, i) => `<div class="rel-row"><span class="rel-label">${i + 1}代目</span>${h.char ? OP.chip(h.char) : `<span class="chip plain">${esc(h.name)}</span>`}<span class="rel-label">${esc(OP.periodLabel(h.since, h.until))}${h.note ? "・" + esc(h.note) : ""}</span></div>`).join("");
+    const holders = (f.holders || []).map((h, i) => `<div class="rel-row"><span class="rel-label">${OP.lang === "en" ? "#" + (i + 1) : i + 1 + "代目"}</span>${h.char ? OP.chip(h.char) : `<span class="chip plain">${esc(h.name)}</span>`}<span class="rel-label">${esc(OP.periodLabel(h.since, h.until))}${h.note ? OP.SEP + esc(h.note) : ""}</span></div>`).join("");
     const back = [...OP.glossary, ...OP.mysteries].filter((x) => (x.related || []).includes(f.id)).map((x) => x.id);
-    return head(f.id, "悪魔の実", f.name, f.type + (f.subtype ? "・" + f.subtype : "")) +
+    return head(f.id, "悪魔の実", f.name, OP.t(f.type + (f.subtype ? "・" + f.subtype : ""))) +
       `<p class="p-desc">${esc(f.desc)}</p>` +
       `<div class="p-actions">${viewBtn("fruits", f.id, "悪魔の実図鑑で見る")}</div>` +
       sec("能力者の履歴", holders) + sec("関連項目", OP.chips(back));
@@ -438,7 +443,7 @@
   // ---- 検索 ----
   const searchIndex = [];
   byId.forEach(({ type, e }, id) => {
-    const keys = [e.name, e.alias, e.term, e.reading, e.title].filter(Boolean).join(" ");
+    const keys = [e.name, e.alias, e.term, e.reading, e.title, ...Object.values(e._ja || {})].filter(Boolean).join(" ");
     searchIndex.push({ id, type, keys: keys.toLowerCase(), name: OP.nameOf(id) });
   });
   const kata = (s) => s.replace(/[ぁ-ゖ]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) + 0x60));

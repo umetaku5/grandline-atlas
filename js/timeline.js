@@ -120,7 +120,7 @@
     d3.groups(OP.arcs, (a) => a.saga).forEach(([saga, arcs], i) => {
       const x0 = xStory({ arc: arcs[0].id }) - 4, x1 = xStory({ arc: arcs[arcs.length - 1].id }) + 4;
       s += `<rect x="${x0}" y="20" width="${x1 - x0}" height="${base - 14}" fill="${i % 2 ? "var(--surface-2)" : "transparent"}"/>`;
-      const lb = OP.fitLabel(saga.replace(/編$/, ""), x1 - x0, 10);
+      const lb = OP.fitLabel(OP.stripArc(saga), x1 - x0, 10);
       if (lb) s += `<text x="${(x0 + x1) / 2}" y="${base + 40}" text-anchor="middle" class="ax-saga">${esc(lb)}</text>`;
     });
     s += `<line x1="${split}" x2="${split}" y1="8" y2="${base + 8}" stroke="var(--accent)" stroke-dasharray="3 3"/><text x="${split + 4}" y="14" class="ax-era" style="fill:var(--accent)">本編 →</text>`;

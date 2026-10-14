@@ -42,7 +42,7 @@
       .on("click", (ev, d) => { ev.stopPropagation(); OP.open(d.id); });
     sel.append("circle").attr("r", (d) => (d.route ? 5.5 : 4.2)).attr("fill", (d) => SEA_COLOR[d.sea] || "#999");
     sel.append("text").attr("y", -8).attr("text-anchor", "middle").text((d) => d.name);
-    sel.append("title").text((d) => `${d.name} — ${OP.SEA[d.sea] || ""}`);
+    sel.append("title").text((d) => `${d.name}${OP.SEP}${OP.t(OP.SEA[d.sea] || "")}`);
     g.append("path").attr("class", "m-ship").attr("d", "M-7 3 L7 3 L4 7 L-4 7 Z M0 -9 L0 3 M0 -9 L6 0 L0 0").attr("stroke", "var(--accent)").attr("stroke-width", 1.5).attr("display", "none");
   }
   function updateFlat() {
@@ -174,7 +174,7 @@
       selId = p.id;
       focusPoint(p.x, p.y, 2.2);
       update();
-      const arcs = (p.arcs || []).map((a) => OP.arc(a) && OP.arc(a).name).filter(Boolean).join("・");
+      const arcs = (p.arcs || []).map((a) => OP.arc(a) && OP.arc(a).name).filter(Boolean).join(OP.SEP);
       caption.hidden = false;
       caption.innerHTML = `<b>${p.route}. ${esc(p.name)}</b> <span class="muted">${esc(arcs)}</span><br><span style="font-size:13px">${esc(p.desc)}</span> <a href="#" data-open="${p.id}">詳しく</a>`;
       i++;

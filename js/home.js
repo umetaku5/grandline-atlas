@@ -29,6 +29,14 @@
   };
 
   function primer() {
+    if (OP.lang === "en") return `<ol>
+      <li>The world is split into ${L("four seas", "四つの海")} by a single continent, the ${L("Red Line", "レッドライン")}, and by the ${L("Grand Line", "グランドライン")}, which crosses it at a right angle. Both sides of the Grand Line are bordered by the ${L("Calm Belt", "カームベルト")}, where giant Sea Kings nest.</li>
+      <li>The Grand Line has two halves, ${L("Paradise", "楽園")} and the ${L("New World", "新世界")}. Where they meet are the ${L("Sabaody Archipelago", "シャボンディ諸島")} and ${L("Fish-Man Island", "魚人島")}, with the ${L("Holy Land of Mary Geoise", "マリージョア")} on the Red Line above them.</li>
+      <li>About 800 years ago, twenty kingdoms founded the ${L("World Government", "世界政府")}, and their descendants became the ${L("Celestial Dragons", "天竜人")}. The hundred years before that are the ${L("Void Century", "空白の100年")}, and even researching them is forbidden.</li>
+      <li>Just before his execution, ${L("Gol D. Roger", "ロジャー")} told the world to go and find his treasure, which started the ${L("Great Pirate Era", "大海賊時代")}. The treasure, the ${L("One Piece", "ワンピース")}, is said to be on the last island, ${L("Laugh Tale", "ラフテル")}.</li>
+      <li>The seas were kept in balance by the ${L("Four Emperors", "四皇")}, the ${L("Navy", "海軍")} and the ${L("Seven Warlords of the Sea", "王下七武海")}. This setup is called the "Three Great Powers", and it breaks down in the later part of the story.</li>
+      <li>Fights run on ${L("Devil Fruits", "悪魔の実")}, which grant strange powers, and ${L("Haki", "覇気")}, the power of willpower. People with a "D" in their name carry a mystery known as the ${L("Will of D.", "Dの意志")}</li>
+    </ol>`;
     return `<ol>
       <li>世界は${L("レッドライン")}という一本の大陸と、それに直交する${L("偉大なる航路", "グランドライン")}によって${L("四つの海")}に分けられている。航路の両脇には大型海王類の巣、${L("凪の帯", "カームベルト")}が広がる。</li>
       <li>偉大なる航路は前半の${L("楽園")}と後半の${L("新世界")}に分かれ、その境目に${L("シャボンディ諸島")}と${L("魚人島")}、真上に${L("聖地マリージョア", "マリージョア")}がある。</li>
@@ -48,32 +56,32 @@
       const pool = OP.characters.filter((c) => c.alias && c.alias.length > 1);
       const c = one(pool);
       const opts = uniqBy([c, ...pickN(pool.filter((x) => x.id !== c.id), 3)], (x) => x.name);
-      return { q: `「${c.alias}」と呼ばれるのは誰?`, opts: opts.map((x) => [x.id, x.name]), ans: c.id, open: c.id };
+      return { q: OP.lang === "en" ? `Who is known as "${c.alias}"?` : `「${c.alias}」と呼ばれるのは誰?`, opts: opts.map((x) => [x.id, x.name]), ans: c.id, open: c.id };
     },
     () => { // 悪魔の実
       const pool = OP.characters.filter((c) => c.fruit);
       const c = one(pool);
       const others = pickN(pool.filter((x) => x.fruit.name !== c.fruit.name), 3);
-      return { q: `${c.fruit.name}の能力者は誰?`, opts: [c, ...others].map((x) => [x.id, x.name]), ans: c.id, open: c.id };
+      return { q: OP.lang === "en" ? `Who ate the ${(OP.fruitsOf(c.id)[0] || c.fruit).name}?` : `${c.fruit.name}の能力者は誰?`, opts: [c, ...others].map((x) => [x.id, x.name]), ans: c.id, open: c.id };
     },
     () => { // 所属
       const pool = OP.characters.filter((c) => c.factions && c.factions.length && OP.faction(c.factions[0]).kind === "group");
       const c = one(pool);
       const right = c.factions[0];
       const others = pickN(OP.factions.filter((f) => f.kind === "group" && !c.factions.includes(f.id)), 3);
-      return { q: `${c.name}が現在所属しているのは?`, opts: [[right, OP.faction(right).name], ...others.map((f) => [f.id, f.name])], ans: right, open: c.id };
+      return { q: OP.lang === "en" ? `Which group does ${c.name} belong to now?` : `${c.name}が現在所属しているのは?`, opts: [[right, OP.faction(right).name], ...others.map((f) => [f.id, f.name])], ans: right, open: c.id };
     },
     () => { // 用語
       const g = one(OP.glossary.filter((x) => x.desc.length > 30));
-      const masked = g.desc.split(g.term).join("〇〇");
+      const masked = g.desc.split(g.term).join(OP.lang === "en" ? "____" : "〇〇");
       const same = OP.glossary.filter((x) => x.id !== g.id && x.category === g.category);
       const others = pickN(same.length >= 3 ? same : OP.glossary.filter((x) => x.id !== g.id), 3);
-      return { q: `次の説明にあてはまる用語は?<br><span class="muted" style="font-weight:400">${esc(masked.slice(0, 120))}${masked.length > 120 ? "…" : ""}</span>`, html: true, opts: [g, ...others].map((x) => [x.id, x.term]), ans: g.id, open: g.id };
+      return { q: `${OP.lang === "en" ? "Which term matches this description?" : "次の説明にあてはまる用語は?"}<br><span class="muted" style="font-weight:400">${esc(masked.slice(0, 120))}${masked.length > 120 ? "…" : ""}</span>`, html: true, opts: [g, ...others].map((x) => [x.id, x.term]), ans: g.id, open: g.id };
     },
     () => { // 場所の海域
       const p = one(OP.places.filter((x) => x.sea !== "other"));
       const seas = pickN(Object.keys(OP.SEA).filter((s) => s !== p.sea && s !== "other"), 3);
-      return { q: `${p.name}があるのは?`, opts: [[p.sea, OP.SEA[p.sea]], ...seas.map((s) => [s, OP.SEA[s]])], ans: p.sea, open: p.id };
+      return { q: OP.lang === "en" ? `Where is ${p.name}?` : `${p.name}があるのは?`, opts: [[p.sea, OP.SEA[p.sea]], ...seas.map((s) => [s, OP.SEA[s]])], ans: p.sea, open: p.id };
     }
   ];
   let score = 0, total = 0;
@@ -101,10 +109,11 @@
   OP.views.home = {
     mount(el) {
       const stats = [["人物", OP.characters.length], ["関係", OP.relations.length], ["勢力", OP.factions.length], ["場所", OP.places.length], ["出来事", OP.timeline.length], ["用語", OP.glossary.length], ["悪魔の実", OP.fruits.length], ["謎", OP.mysteries.length]];
+      if (OP.lang === "en") ["People", "Relationships", "Factions", "Places", "Events", "Terms", "Devil Fruits", "Mysteries"].forEach((k, i) => stats[i] && (stats[i][0] = k));
       el.innerHTML = `<div class="wrap">
         <div class="hero">
           <svg class="hero-compass" viewBox="0 0 200 200" aria-hidden="true"><g fill="none" stroke="currentColor"><circle cx="100" cy="100" r="96" stroke-width="2"/><circle cx="100" cy="100" r="80" stroke-dasharray="2 6"/><circle cx="100" cy="100" r="40"/></g><path d="M100 8l12 92-12 92-12-92z" fill="currentColor" opacity=".6"/><path d="M8 100l92-12 92 12-92 12z" fill="currentColor" opacity=".35"/></svg>
-          <h1>ひとつなぎの世界を、<br><em>地図と線</em>で読み解く。</h1>
+          <h1>${OP.lang === "en" ? "The world of One Piece,<br><em>mapped and connected.</em>" : "ひとつなぎの世界を、<br><em>地図と線</em>で読み解く。"}</h1>
           <p class="lead">ワンピースの人物関係・勢力・地理・歴史をつなげて学べる非公式の図鑑です。どの項目からでも、関係するすべてへ飛べます。</p>
         </div>
         <div class="stats">${stats.map(([k, v]) => `<div class="stat"><b>${v}</b><span>${k}</span></div>`).join("")}</div>

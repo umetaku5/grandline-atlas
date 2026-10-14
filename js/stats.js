@@ -3,7 +3,9 @@
   const esc = OP.esc;
   const TABS = [["bounties", "懸賞金"], ["battles", "戦績"]];
   const SLOTS = 6; // 同時に比べられる人数。色は選んだ人物に固定で付く(順位では塗り直さない)
-  const fmtShort = (n) => (n >= 1e8 ? `${+(n / 1e8).toFixed(n >= 1e9 ? 0 : 1)}億` : `${Math.round(n / 1e4)}万`);
+  const fmtShort = (n) => OP.lang === "en"
+    ? (n >= 1e9 ? `${+(n / 1e9).toFixed(1)}B` : `${Math.round(n / 1e6)}M`)
+    : (n >= 1e8 ? `${+(n / 1e8).toFixed(n >= 1e9 ? 0 : 1)}億` : `${Math.round(n / 1e4)}万`);
 
   // ---- 懸賞金の推移 ----
   let bEl, picked = new Map(); // charId -> slot(1..6)
@@ -17,7 +19,7 @@
   function renderPicker() {
     bEl.querySelector(".b-picker").innerHTML = OP.bounties.map((b) => {
       const s = picked.get(b.char);
-      return `<button class="toggle pick" data-pick="${b.char}" aria-pressed="${!!s}">${s ? `<span class="swatch" style="--c:var(--s${s})"></span>` : ""}${esc(OP.nameOf(b.char).split("・").pop())}</button>`;
+      return `<button class="toggle pick" data-pick="${b.char}" aria-pressed="${!!s}">${s ? `<span class="swatch" style="--c:var(--s${s})"></span>` : ""}${esc(OP.short(OP.nameOf(b.char)))}</button>`;
     }).join("");
   }
   function renderLines() {
@@ -34,7 +36,7 @@
     d3.groups(OP.arcs, (a) => a.saga).forEach(([saga, arcs], i) => {
       const x0 = x(arcs[0].order) - 4, x1 = x(arcs[arcs.length - 1].order) + 4;
       if (i % 2) s += `<rect x="${x0}" y="${M.t}" width="${x1 - x0}" height="${H - M.t - M.b}" fill="var(--surface-2)" opacity=".6"/>`;
-      const lb = OP.fitLabel(saga.replace(/編$/, ""), x1 - x0, 10);
+      const lb = OP.fitLabel(OP.stripArc(saga), x1 - x0, 10);
       if (lb) s += `<text x="${(x0 + x1) / 2}" y="${H - M.b + 18}" text-anchor="middle" class="ax-saga">${esc(lb)}</text>`;
     });
     const labels = [];
@@ -47,7 +49,7 @@
       pts.push([x(n), y(last.v)]);
       s += `<polyline fill="none" stroke="var(--s${sr.slot})" stroke-width="2" stroke-linejoin="round" points="${pts.map((p) => p.join(",")).join(" ")}"/>`;
       sr.hist.forEach((h) => { s += `<circle cx="${x(h.o)}" cy="${y(h.v)}" r="4" fill="var(--s${sr.slot})" stroke="var(--surface)" stroke-width="2"/>`; });
-      labels.push({ y: y(last.v), text: OP.nameOf(sr.id).split("・").pop(), slot: sr.slot });
+      labels.push({ y: y(last.v), text: OP.short(OP.nameOf(sr.id)), slot: sr.slot });
     });
     // 線の右端に直接ラベル(重なりは上下にずらす)
     labels.sort((a, b) => a.y - b.y).forEach((l, i, arr) => { if (i && l.y - arr[i - 1].y < 13) l.y = arr[i - 1].y + 13; });
@@ -64,7 +66,7 @@
       if (!arc) return;
       xh.setAttribute("x1", x(arc.order)); xh.setAttribute("x2", x(arc.order)); xh.removeAttribute("display");
       const rows = series.map((sr) => { const k = sr.hist.filter((h) => h.o <= arc.order).pop(); return { sr, v: k ? k.v : null }; }).sort((a, b) => (b.v || 0) - (a.v || 0));
-      tip.innerHTML = `<b>${esc(arc.name)}</b>${rows.map((r) => `<div><span class="swatch" style="--c:var(--s${r.sr.slot})"></span>${esc(OP.nameOf(r.sr.id).split("・").pop())} <span class="tv">${r.v ? esc(OP.formatBounty(r.v)) : "—"}</span></div>`).join("")}`;
+      tip.innerHTML = `<b>${esc(arc.name)}</b>${rows.map((r) => `<div><span class="swatch" style="--c:var(--s${r.sr.slot})"></span>${esc(OP.short(OP.nameOf(r.sr.id)))} <span class="tv">${r.v ? esc(OP.formatBounty(r.v)) : "—"}</span></div>`).join("")}`;
       tip.hidden = false;
       const left = ((x(arc.order) / W) * pt.width);
       tip.style.left = Math.min(left + 12, pt.width - tip.offsetWidth - 4) + "px";
@@ -136,7 +138,7 @@
     const vs = (r) => {
       const win = r.winner === "from" ? r.from : r.winner === "to" ? r.to : null;
       const side = (id) => `<span class="vs-side${win === id ? " won" : win ? " lost" : ""}">${OP.chip(id)}${win === id ? '<span class="result win">勝ち</span>' : ""}</span>`;
-      return `<div class="vs-row">${side(r.from)}<span class="vs">vs</span>${side(r.to)}<span class="rel-label">${win ? "" : r.winner === "draw" ? "引き分け・" : "決着なし・"}${esc(r.label)}</span></div>`;
+      return `<div class="vs-row">${side(r.from)}<span class="vs">vs</span>${side(r.to)}<span class="rel-label">${win ? "" : `<span class="result draw">${r.winner === "draw" ? "引き分け" : "決着なし"}</span> `}${esc(r.label)}</span></div>`;
     };
     const groups = d3.groups(list, (r) => r.arc || "");
     wEl.querySelector(".w-list").innerHTML = groups.map(([a, rs]) => `<div class="w-arc"><h3>${a && OP.arc(a) ? OP.arcChip(a) : "時期不明"}</h3>${rs.map(vs).join("")}</div>`).join("") || '<p class="muted">該当する戦いがありません。</p>';

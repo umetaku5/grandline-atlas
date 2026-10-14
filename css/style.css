@@ -59,21 +59,21 @@ h1, h2, h3 { font-family: var(--display); font-weight: 400; letter-spacing: .02e
 /* ===== ヘッダー ===== */
 .topbar {
   position: sticky; top: 0; z-index: 30;
-  display: flex; align-items: center; gap: 18px;
+  display: flex; align-items: center; gap: 12px;
   padding: 10px 20px; background: color-mix(in srgb, var(--bg) 88%, transparent);
   backdrop-filter: blur(10px); border-bottom: 1px solid var(--line-strong);
 }
 .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--brass); flex-shrink: 0; }
 .brand-mark { width: 30px; height: 30px; }
 .brand-text { font-family: var(--display); font-size: 18px; color: var(--ink); }
-.nav { display: flex; gap: 4px; }
-.nav a {
-  text-decoration: none; padding: 6px 12px; border-radius: 6px; font-weight: 700; font-size: 14px; color: var(--muted);
+.nav { display: flex; gap: 0; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.nav a { white-space: nowrap;
+  text-decoration: none; padding: 6px 9px; border-radius: 6px; font-weight: 700; font-size: 14px; color: var(--muted);
   border-bottom: 2px solid transparent;
 }
 .nav a:hover { color: var(--ink); background: var(--surface-2); }
 .nav a.active { color: var(--ink); border-bottom-color: var(--accent); border-radius: 6px 6px 0 0; }
-.search { position: relative; margin-left: auto; width: min(320px, 34vw); }
+.search { position: relative; margin-left: auto; width: min(280px, 24vw); flex-shrink: 1; }
 .search input {
   width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line-strong);
   background: var(--surface); color: var(--ink); font: inherit; font-size: 14px;
@@ -92,6 +92,7 @@ h1, h2, h3 { font-family: var(--display); font-weight: 400; letter-spacing: .02e
   border: 1px solid var(--line-strong); background: var(--surface); cursor: pointer; font-size: 20px; line-height: 1;
 }
 .icon-btn svg { width: 18px; height: 18px; }
+.lang-btn { width: auto; min-width: 36px; padding: 0 9px; font-size: 13px; font-weight: 700; }
 
 /* ===== ビュー ===== */
 #views { min-height: calc(100vh - 58px); }

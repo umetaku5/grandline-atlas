@@ -74,7 +74,7 @@
       .style("fill", (d) => (d.char ? "#fff" : "var(--muted)"))
       .text((d) => OP.initial(d.char ? OP.get(d.char).e.name : d.name));
     g.append("text").attr("class", "fam-name").attr("text-anchor", "middle").attr("y", 40)
-      .text((d) => (d.char ? OP.get(d.char).e.name : d.name).split("・").pop());
+      .text((d) => OP.short(d.char ? OP.get(d.char).e.name : d.name));
     g.filter((d) => d.note).append("text").attr("class", "fam-note").attr("text-anchor", "middle").attr("y", 55).text((d) => d.note);
     g.append("title").text((d) => (d.char ? OP.get(d.char).e.name : d.name) + (d.note ? `(${d.note})` : ""));
     fit(nodes);

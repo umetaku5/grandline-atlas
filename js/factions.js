@@ -47,7 +47,7 @@
       .attr("font-size", (d) => d.r * .95).text((d) => OP.initial(d.data.char.name));
     g.filter((d) => d.data.char).append("text").attr("class", "pk-name").attr("text-anchor", "middle")
       .style("fill", "var(--ink)").style("font-weight", 700).style("pointer-events", "none").style("paint-order", "stroke").style("stroke", "var(--surface)")
-      .text((d) => d.data.char.name.split("・").pop());
+      .text((d) => OP.short(d.data.char.name));
     // 勢力名ラベル(円の上端)
     gZoom.selectAll("text.pack-label").data(nodes.filter((d) => !d.data.char), (d) => d.data.id).enter().append("text")
       .attr("class", "pack-label").attr("x", (d) => d.x).attr("y", (d) => d.y - d.r + 12).text((d) => d.data.fac.name);
@@ -113,7 +113,7 @@
     return `<div class="pyr"><h2>${title}</h2><p class="muted">${note}</p>${tiers.map(([label, chars], i) => `
       <div class="tier" style="--w:${48 + (52 * i) / Math.max(1, n - 1)}%">
         <div class="tier-label">${esc(label)} <span class="count">${chars.length}</span></div>
-        <div class="tier-body">${chars.map((c) => `<a class="chip" data-open="${c.id}" href="#" title="${esc(c.name)}">${OP.avatar(c.id)}${esc(c.name.split("・").pop())}</a>`).join("") || '<span class="muted" style="font-size:12px">該当なし</span>'}</div>
+        <div class="tier-body">${chars.map((c) => `<a class="chip" data-open="${c.id}" href="#" title="${esc(c.name)}">${OP.avatar(c.id)}${esc(OP.short(c.name))}</a>`).join("") || '<span class="muted" style="font-size:12px">該当なし</span>'}</div>
       </div>`).join("")}</div>`;
   }
   let pyrEl;
@@ -160,7 +160,7 @@
     d3.groups(OP.arcs, (a) => a.saga).forEach(([saga, arcs], i) => {
       const x0 = x(arcs[0].order), x1 = x(arcs[arcs.length - 1].order + 1);
       out += `<rect x="${x0}" y="0" width="${x1 - x0}" height="${H}" fill="${i % 2 ? "var(--surface-2)" : "transparent"}"/>
-        ${OP.fitLabel(saga.replace(/編$/, ""), x1 - x0, 10) ? `<text x="${(x0 + x1) / 2}" y="16" text-anchor="middle" class="seat-saga">${esc(OP.fitLabel(saga.replace(/編$/, ""), x1 - x0, 10))}</text>` : ""}`;
+        ${OP.fitLabel(OP.stripArc(saga), x1 - x0, 10) ? `<text x="${(x0 + x1) / 2}" y="16" text-anchor="middle" class="seat-saga">${esc(OP.fitLabel(OP.stripArc(saga), x1 - x0, 10))}</text>` : ""}`;
     });
     out += `<text x="${x(0) + COL / 2}" y="16" text-anchor="middle" class="seat-saga">以前</text>`;
     OP.arcs.forEach((a) => { out += `<rect x="${x(a.order)}" y="24" width="${COL - 2}" height="14" rx="2" fill="var(--line)"><title>${esc(a.name)}</title></rect>`; });
@@ -172,8 +172,8 @@
       const s = r.h.since ? OP.arcOrder(r.h.since) : 0, e = r.h.until ? OP.arcOrder(r.h.until) : OP.arcs.length;
       const active = OP.time == null || (s <= OP.time && e >= OP.time);
       out += `<g class="seat-row${active ? "" : " dim"}" data-open="${c.id}" style="cursor:pointer">
-        <text x="14" y="${y + 17}" class="seat-name">${esc(c.name.split("・").pop())}</text>
-        <rect x="${x(s) + 1}" y="${y + 5}" width="${Math.max(COL - 2, x(e + 1) - x(s) - 2)}" height="${RH - 10}" rx="4" fill="${OP.charColor(c, null)}"><title>${esc(c.name)}: ${esc(r.p.name)} ${esc(OP.periodLabel(r.h.since, r.h.until) || "開始前〜")}${r.h.note ? "(" + esc(r.h.note) + ")" : ""}</title></rect>
+        <text x="14" y="${y + 17}" class="seat-name">${esc(OP.short(c.name))}</text>
+        <rect x="${x(s) + 1}" y="${y + 5}" width="${Math.max(COL - 2, x(e + 1) - x(s) - 2)}" height="${RH - 10}" rx="4" fill="${OP.charColor(c, null)}"><title>${esc(c.name)}: ${esc(r.p.name)} ${esc(OP.periodLabel(r.h.since, r.h.until) || OP.t("物語開始前〜"))}${r.h.note ? "(" + esc(r.h.note) + ")" : ""}</title></rect>
       </g>`;
     });
     seatsEl.innerHTML = out + "</svg>";

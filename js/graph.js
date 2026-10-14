@@ -91,7 +91,7 @@
     highlight();
   }
 
-  const shortName = (n) => { const p = n.split("・"); return p.length > 2 ? p[p.length - 1] : n.length > 9 ? p[p.length - 1] : n; };
+  const shortName = (n) => { if (OP.lang === "en") return n.length > 14 ? OP.short(n) : n; const p = n.split("・"); return p.length > 2 ? p[p.length - 1] : n.length > 9 ? p[p.length - 1] : n; };
   function applyLabels() {
     const many = curNodes.length > 70;
     gNodes.selectAll("g.g-node .lbl").attr("display", (d) => (!many || d.c.major || k > 1.3 || d.id === state.sel ? null : "none"));

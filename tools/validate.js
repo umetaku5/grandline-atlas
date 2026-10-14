@@ -13,6 +13,12 @@ for (const f of ["arcs", "factions", "characters", "relations", "places", "timel
   if (!fs.existsSync(p)) { console.log(`(skip) ${f}.js がありません`); continue; }
   vm.runInContext(fs.readFileSync(p, "utf8"), ctx, { filename: p });
 }
+// 英語データ(_init.js を先に読み、残りはファイル名順)
+const enDir = path.join(dataDir, "en");
+if (fs.existsSync(enDir)) {
+  const files = fs.readdirSync(enDir).filter((f) => f.endsWith(".js")).sort((a, b) => (a === "_init.js" ? -1 : b === "_init.js" ? 1 : a.localeCompare(b)));
+  for (const f of files) vm.runInContext(fs.readFileSync(path.join(enDir, f), "utf8"), ctx, { filename: f });
+}
 const OP = ctx.window.OP;
 const errors = [];
 const warn = [];
@@ -197,6 +203,67 @@ for (const b of bounties) {
   if (c && last && c.bounty != null && c.bounty !== last.value) warn.push(`${o}: 最新値 ${last.value} が characters.js の ${c.bounty} と不一致`);
 }
 
+// ---- 英語版の網羅チェック ----
+if (OP.en) {
+  const JA = /[\u3040-\u30ff\u3400-\u9fff]/;
+  const enErr = [];
+  const E = (m) => enErr.push(m);
+  const has = (v) => typeof v === "string" && v.trim() !== "";
+  const checkStr = (o, v, allowJa) => {
+    if (!has(v)) return E(`${o}: 英訳がありません`);
+    if (!allowJa && JA.test(v)) E(`${o}: 日本語が残っています "${v.slice(0, 30)}"`);
+    if (/[\u2013\u2014]/.test(v)) warn.push(`${o}: ダッシュ(— –)を使っています`);
+  };
+  const en = (k, id) => (OP.en[k] || {})[id] || {};
+  const need = (k, list, fields) => list.forEach((x) => fields.forEach((f) => { if (x[f] != null && x[f] !== "") checkStr(`en.${k}.${x.id}.${f}`, en(k, x.id)[f]); }));
+  need("characters", chars, ["name", "alias", "role", "desc"]);
+  need("factions", factions, ["name", "desc"]);
+  need("places", places, ["name", "desc"]);
+  need("arcs", arcs, ["name", "saga", "summary"]);
+  need("timeline", timeline, ["when", "title", "desc"]);
+  need("glossary", glossary, ["term", "desc"]);
+  need("fruits", fruits, ["name", "desc"]);
+  need("mysteries", mysteries, ["title", "summary"]);
+  need("families", families, ["name", "desc"]);
+  need("positions", positions, ["name", "desc"]);
+  chars.filter((c) => c.fruit).forEach((c) => { if (!fruits.some((f) => (f.holders || []).some((h) => h.char === c.id))) checkStr(`en.characters.${c.id}.fruitName`, en("characters", c.id).fruitName); });
+  const relKey = OP.relKey;
+  const seenKeys = new Set();
+  rels.forEach((r) => {
+    const k = relKey(r);
+    if (seenKeys.has(k)) err(`relation キー重複 ${k}`);
+    seenKeys.add(k);
+    checkStr(`en.relations.${k}.label`, en("relations", k).label);
+  });
+  const arrays = (k, list, field, sub) => list.forEach((x) => (x[field] || []).forEach((item, i) => {
+    const tr = (en(k, x.id)[field] || [])[i];
+    if (sub) sub.forEach((f) => { if (item[f]) checkStr(`en.${k}.${x.id}.${field}[${i}].${f}`, tr && tr[f]); });
+    else checkStr(`en.${k}.${x.id}.${field}[${i}]`, tr);
+  }));
+  arrays("mysteries", mysteries, "known"); arrays("mysteries", mysteries, "clues");
+  arrays("fruits", fruits, "holders", ["name", "note"]);
+  arrays("positions", positions, "holders", ["note"]);
+  families.forEach((f) => (f.members || []).forEach((m) => ["name", "note"].forEach((fd) => {
+    if (m[fd]) checkStr(`en.families.${f.id}.members.${m.key}.${fd}`, ((en("families", f.id).members || {})[m.key] || {})[fd]);
+  })));
+  // 存在しないIDへの英訳(タイプミス)を検出
+  const known = { characters: chars, factions, places, arcs, timeline, glossary, fruits, mysteries, families, positions };
+  for (const k in OP.en) {
+    if (k === "relations") { for (const key in OP.en.relations) if (!seenKeys.has(key)) err(`en.relations: 存在しない関係キー ${key}`); continue; }
+    if (!known[k]) { err(`en: 未知のコレクション ${k}`); continue; }
+    const idset = new Set(known[k].map((x) => x.id));
+    for (const id in OP.en[k]) if (!idset.has(id)) err(`en.${k}: 存在しないID ${id}`);
+  }
+  const byKind = {};
+  enErr.forEach((m) => { const k = m.split(".")[1]; byKind[k] = (byKind[k] || 0) + 1; });
+  if (enErr.length) {
+    console.log("英訳の不足:", byKind);
+    if (process.argv.includes("--en")) enErr.forEach((m) => console.log("EN", m));
+    else console.log("(詳細は node tools/validate.js --en)");
+    enErr.forEach((m) => errors.push(m));
+  } else console.log("英訳: 不足なし");
+}
+
 const counts = { arcs: arcs.length, factions: factions.length, characters: chars.length, relations: rels.length, places: places.length, timeline: timeline.length, glossary: glossary.length,
   fruits: fruits.length, mysteries: mysteries.length, families: families.length, positions: positions.length, bounties: bounties.length };
 const mins = { factions: 25, characters: 150, relations: 250, places: 60, timeline: 80, glossary: 80 };
@@ -205,6 +272,6 @@ for (const [k, m] of Object.entries(mins)) if (counts[k] < m) warn.push(`件数�
 const isolated = chars.filter((c) => !rels.some((r) => r.from === c.id || r.to === c.id));
 if (rels.length && isolated.length) warn.push(`関係が1本もないキャラ ${isolated.length}人: ${isolated.map((c) => c.id).join(", ")}`);
 warn.forEach((w) => console.log("WARN", w));
-errors.forEach((e) => console.log("ERROR", e));
+errors.filter((e) => !e.startsWith("en.") || process.argv.includes("--en")).forEach((e) => console.log("ERROR", e));
 console.log(errors.length ? `\nエラー ${errors.length}件` : "\nエラー 0件");
 process.exit(errors.length ? 1 : 0);
